@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:purepulse_app/services/aqi_service.dart';
 import 'package:purepulse_app/services/firestore_service.dart';
 import 'package:purepulse_app/screens/auth/login_screen.dart';
+import 'package:purepulse_app/screens/onboarding/add_child_profile_screen.dart';
+import 'package:purepulse_app/screens/home/notification_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,30 +17,37 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<Map<String, dynamic>> _dataFuture;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _dataFuture = _loadData();
     _setupFCM();
   }
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   Future<Map<String, dynamic>> _loadData() async {
+    // This function is now only called by the FutureBuilder
     final firestoreService = context.read<FirestoreService>();
-    final aqiService = context.read<AqiService>(); // Assuming you provide this
+    final aqiService = context.read<AqiService>();
     final user = FirebaseAuth.instance.currentUser!;
 
-    // Fetch user document
     final userDoc = await firestoreService.getUser(user.uid);
     final userData = userDoc.data() as Map<String, dynamic>;
 
-    // Fetch AQI data using user's location
-    final location = userData['primaryLocation'];
+    if (userData['primaryLocation'] == null) {
+      throw Exception('User location has not been set up.');
+    }
     final aqiData = await aqiService.getAqiData(
-        location['latitude'], location['longitude']);
+        userData['primaryLocation']['latitude'], userData['primaryLocation']['longitude']);
+    
+    print('RAW AQI DATA FROM API: $aqiData');
 
-    // If parent, fetch children data as well
     if (userData['userType'] == 'parent') {
       final childrenSnapshot = await firestoreService.getChildren(user.uid);
       return {
@@ -55,14 +64,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final firestoreService = context.read<FirestoreService>();
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-
-    // Request permission for notifications (important for iOS)
     await FirebaseMessaging.instance.requestPermission();
-
-    // Get the token
     final fcmToken = await FirebaseMessaging.instance.getToken();
-
-    // Save the token to Firestore
     if (fcmToken != null) {
       await firestoreService.saveUserToken(user.uid, fcmToken);
       print('FCM Token saved to Firestore: $fcmToken');
@@ -71,70 +74,107 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('PurePulse Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              // 1. Sign the user out
-              await FirebaseAuth.instance.signOut();
+    // This is the new, cleaner structure.
+    // The FutureBuilder is at the top level.
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _loadData(),
+      builder: (context, snapshot) {
+        // Handle loading and error states first
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasError) {
+          return Scaffold(body: Center(child: Text('Error: ${snapshot.error}')));
+        }
+        if (!snapshot.hasData) {
+          return const Scaffold(body: Center(child: Text('No data found.')));
+        }
 
-              // 2. Navigate to the LoginScreen and remove all previous screens
-              if (mounted) {
-                // Checks if the widget is still in the tree
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (route) => false, // This predicate removes all routes.
-                );
-              }
-            },
-          )
-        ],
-      ),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _dataFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: Text('No data found.'));
-          }
+        // Once data is loaded, build the real UI
+        final data = snapshot.data!;
+        final userType = data['user']['userType'];
 
-          final data = snapshot.data!;
-          final userType = data['user']['userType'];
+        final List<Widget> pages = [
+          userType == 'personal'
+              ? _buildPersonalDashboard(data['user'], data['aqi'])
+              : _buildParentDashboard(data['user'], data['aqi'], data['children']),
+          const NotificationHistoryScreen(),
+        ];
 
-          if (userType == 'personal') {
-            return _buildPersonalDashboard(data['user'], data['aqi']);
-          } else {
-            return _buildParentDashboard(
-                data['user'], data['aqi'], data['children']);
-          }
-        },
-      ),
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(_selectedIndex == 0 ? 'Dashboard' : 'Notification History'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+          body: IndexedStack(
+            index: _selectedIndex,
+            children: pages,
+          ),
+          bottomNavigationBar: BottomNavigationBar(
+            items: const <BottomNavigationBarItem>[
+              BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
+              BottomNavigationBarItem(icon: Icon(Icons.history_outlined), label: 'History'),
+            ],
+            currentIndex: _selectedIndex,
+            onTap: _onItemTapped,
+          ),
+          floatingActionButton: (_selectedIndex == 0 && userType == 'parent')
+              ? FloatingActionButton(
+                  onPressed: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const AddChildProfileScreen(isFirstChild: false),
+                      ),
+                    );
+                    setState(() {}); // Rebuild to refresh the dashboard future
+                  },
+                  child: const Icon(Icons.add),
+                  tooltip: 'Add Child',
+                )
+              : null,
+        );
+      },
     );
   }
 
-  // UI for Personal Users
-  Widget _buildPersonalDashboard(
-      Map<String, dynamic> user, Map<String, dynamic> aqi) {
-    final aqiValue =
-        aqi['main']['aqi']; // AQI is a value from 1 (Good) to 5 (Very Poor)
-    // You can build out a full UI here. This is a simple example.
+  String _calculateRisk(List<dynamic> conditions, int aqi) {
+    bool isSensitive = conditions.any((c) => 
+      ['Asthma', 'Bronchitis', 'COPD', 'Allergies', 'Hay Fever'].contains(c)
+    );
+    if (isSensitive) {
+      if (aqi > 100) return 'High Risk';
+      if (aqi > 50) return 'Moderate Risk';
+      return 'Low Risk';
+    } else {
+      if (aqi > 150) return 'High Risk';
+      if (aqi > 100) return 'Moderate Risk';
+      return 'Low Risk';
+    }
+  }
+
+  Widget _buildPersonalDashboard(Map<String, dynamic> user, Map<String, dynamic> aqi) {
+    final int aqiValue = (aqi['aqi'] is int) ? aqi['aqi'] : int.tryParse(aqi['aqi'].toString()) ?? 0;
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Hello, ${user['name']}!',
-              style: Theme.of(context).textTheme.headlineSmall),
+          Text('Hello, ${user['name']}!', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 24),
-          _AqiDisplayCard(aqiValue: aqiValue),
+          _AqiDisplayCard(aqiData: aqi),
           const SizedBox(height: 16),
           _HealthRiskCard(user: user, aqi: aqiValue),
         ],
@@ -142,27 +182,42 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // UI for Parent Users
-  Widget _buildParentDashboard(Map<String, dynamic> user,
-      Map<String, dynamic> aqi, List<DocumentSnapshot> children) {
-    final aqiValue = aqi['main']['aqi'];
+  Widget _buildParentDashboard(Map<String, dynamic> user, Map<String, dynamic> aqi, List<DocumentSnapshot> children) {
+    final int aqiValue = (aqi['aqi'] is int) ? aqi['aqi'] : int.tryParse(aqi['aqi'].toString()) ?? 0;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: _AqiDisplayCard(aqiValue: aqiValue),
+          child: _AqiDisplayCard(aqiData: aqi),
         ),
-        const Divider(),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Text("Your Children's Profiles", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ),
         Expanded(
           child: ListView.builder(
             itemCount: children.length,
             itemBuilder: (context, index) {
               final child = children[index].data() as Map<String, dynamic>;
-              return ListTile(
-                title: Text(child['name']),
-                subtitle: Text(
-                    'Risk: High'), // TODO: Calculate risk based on child's health
-                leading: const Icon(Icons.child_care),
+              final risk = _calculateRisk(child['healthConditions'] as List? ?? [], aqiValue);
+              Color riskColor = Colors.green;
+              if (risk == 'High Risk') riskColor = Colors.red;
+              if (risk == 'Moderate Risk') riskColor = Colors.orange;
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: riskColor.withOpacity(0.15),
+                    child: Icon(Icons.child_care, color: riskColor),
+                  ),
+                  title: Text(child['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text((child['healthConditions'] as List?)?.join(', ') ?? 'No conditions listed'),
+                  trailing: Chip(
+                    label: Text(risk, style: const TextStyle(color: Colors.white)),
+                    backgroundColor: riskColor,
+                  ),
+                ),
               );
             },
           ),
@@ -172,64 +227,41 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Reusable card for displaying AQI
 class _AqiDisplayCard extends StatelessWidget {
-  final int aqiValue;
-  const _AqiDisplayCard({required this.aqiValue});
+  final Map<String, dynamic> aqiData;
+  const _AqiDisplayCard({super.key, required this.aqiData});
 
-  String _getAqiText(int value) {
-    switch (value) {
-      case 1:
-        return 'Good';
-      case 2:
-        return 'Fair';
-      case 3:
-        return 'Moderate';
-      case 4:
-        return 'Poor';
-      case 5:
-        return 'Very Poor';
-      default:
-        return 'Unknown';
-    }
+  Color _getAqiColor(int aqi) {
+    if (aqi > 200) return Colors.purple;
+    if (aqi > 150) return Colors.red;
+    if (aqi > 100) return Colors.orange;
+    if (aqi > 50) return Colors.yellow.shade700;
+    return Colors.green;
   }
 
-  Color _getAqiColor(int value) {
-    switch (value) {
-      case 1:
-        return Colors.green;
-      case 2:
-        return Colors.yellow.shade700;
-      case 3:
-        return Colors.orange;
-      case 4:
-        return Colors.red;
-      case 5:
-        return Colors.purple;
-      default:
-        return Colors.grey;
-    }
+  String _getAqiText(int aqi) {
+    if (aqi > 200) return 'Very Unhealthy';
+    if (aqi > 150) return 'Unhealthy';
+    if (aqi > 100) return 'Unhealthy for Sensitive';
+    if (aqi > 50) return 'Moderate';
+    return 'Good';
   }
 
   @override
   Widget build(BuildContext context) {
+    final aqiValue = aqiData['aqi'];
+    final int finalAqi = (aqiValue is int) ? aqiValue : int.tryParse(aqiValue.toString()) ?? 0;
     return Card(
       elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            const Text('Current Air Quality',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Live Air Quality Index', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
-            Text(
-              _getAqiText(aqiValue),
-              style: TextStyle(
-                  fontSize: 28,
-                  color: _getAqiColor(aqiValue),
-                  fontWeight: FontWeight.bold),
-            ),
-            Text('AQI: $aqiValue'),
+            Text(finalAqi.toString(), style: TextStyle(fontSize: 48, color: _getAqiColor(finalAqi), fontWeight: FontWeight.bold)),
+            Text(_getAqiText(finalAqi), style: TextStyle(color: _getAqiColor(finalAqi), fontWeight: FontWeight.bold, fontSize: 18)),
           ],
         ),
       ),
@@ -237,38 +269,42 @@ class _AqiDisplayCard extends StatelessWidget {
   }
 }
 
-// Reusable card for displaying health risk
 class _HealthRiskCard extends StatelessWidget {
   final Map<String, dynamic> user;
   final int aqi;
 
-  const _HealthRiskCard({required this.user, required this.aqi});
+  const _HealthRiskCard({super.key, required this.user, required this.aqi});
 
-  // TODO: Implement a real risk calculation algorithm
-  String _calculateRisk() {
-    final conditions = user['healthConditions'] as List;
-    if (conditions.isNotEmpty && aqi > 2) {
-      return 'High Risk';
+  String _calculateRisk(List<dynamic> conditions, int aqiValue) {
+    bool isSensitive = conditions.any((c) => 
+      ['Asthma', 'Bronchitis', 'COPD', 'Allergies', 'Hay Fever'].contains(c)
+    );
+    if (isSensitive) {
+      if (aqiValue > 100) return 'High Risk';
+      if (aqiValue > 50) return 'Moderate Risk';
+      return 'Low Risk';
+    } else {
+      if (aqiValue > 150) return 'High Risk';
+      if (aqiValue > 100) return 'Moderate Risk';
+      return 'Low Risk';
     }
-    if (aqi > 3) {
-      return 'Moderate Risk';
-    }
-    return 'Low Risk';
   }
 
   @override
   Widget build(BuildContext context) {
+    final risk = _calculateRisk(user['healthConditions'] as List? ?? [], aqi);
+    Color riskColor = Colors.green;
+    if (risk == 'High Risk') riskColor = Colors.red;
+    if (risk == 'Moderate Risk') riskColor = Colors.orange;
+
     return Card(
       elevation: 2,
       child: ListTile(
         title: const Text('Your Personalized Risk'),
-        subtitle: Text('Based on your health data and current AQI'),
-        trailing: Text(
-          _calculateRisk(),
-          style: TextStyle(
-            color: _calculateRisk() == 'High Risk' ? Colors.red : Colors.green,
-            fontWeight: FontWeight.bold,
-          ),
+        subtitle: Text('Based on current AQI & your health data'),
+        trailing: Chip(
+          label: Text(risk, style: const TextStyle(color: Colors.white)),
+          backgroundColor: riskColor,
         ),
       ),
     );

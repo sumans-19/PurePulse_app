@@ -1,18 +1,18 @@
+// In lib/services/aqi_service.dart
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AqiService {
-  final String _apiKey = 'fe50874374ed6c4abfacb98b377d55b1'; // <-- IMPORTANT: PASTE YOUR KEY HERE
-  final String _baseUrl = 'https://api.openweathermap.org/data/2.5/air_pollution';
+  final String _token = '324250aa1f0fd6b2e17e150d8f521f44a688b70b'; // <-- Paste your new WAQI token
 
   Future<Map<String, dynamic>> getAqiData(double lat, double lon) async {
-    final url = Uri.parse('$_baseUrl?lat=$lat&lon=$lon&appid=$_apiKey');
-    
+    final url = Uri.parse('https://api.waqi.info/feed/geo:$lat;$lon/?token=$_token');
+
     try {
       final response = await http.get(url);
-      if (response.statusCode == 200) {
-        // The API returns a list, we are interested in the first item.
-        return json.decode(response.body)['list'][0];
+      if (response.statusCode == 200 && json.decode(response.body)['status'] == 'ok') {
+        return json.decode(response.body)['data']; // Return the 'data' object
       } else {
         throw Exception('Failed to load AQI data');
       }

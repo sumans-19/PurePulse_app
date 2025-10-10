@@ -68,4 +68,20 @@ class FirestoreService {
       print("Error saving user token: $e");
     }
   }
+
+  // Add this new method to your FirestoreService class
+
+Future<void> deleteNotification(String userId, String notificationId) async {
+  try {
+    await _db
+        .collection('users')
+        .doc(userId)
+        .collection('notifications')
+        .doc(notificationId)
+        .delete();
+  } catch (e) {
+    print("Error deleting notification: $e");
+    // Optionally re-throw or handle the error
+  }
+}
 }

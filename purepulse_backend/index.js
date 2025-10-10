@@ -1,121 +1,187 @@
 // Import required packages
-require('dotenv').config(); // Loads environment variables from .env file
+require('dotenv').config();
 const admin = require('firebase-admin');
 const cron = require('node-cron');
 const axios = require('axios');
 
-// Load your service account key
+// Initialize Firebase
 const serviceAccount = require('./serviceAccountKey.json');
-
-// Initialize the Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
 const db = admin.firestore();
 const messaging = admin.messaging();
-const openWeatherApiKey = process.env.OPENWEATHER_API_KEY;
+const waqiToken = process.env.WAQI_TOKEN;
 
-/**
- * The core function that efficiently checks AQI and sends alerts.
- */
+const NOTIFICATION_COOLDOWN_HOURS = 0; // Set to 0 for immediate notifications (testing)
+
 const checkAqiAndSendAlerts = async () => {
-  console.log(`[${new Date().toLocaleString()}] Running scheduled AQI check...`);
+  console.log(`[${new Date().toLocaleString()}] Running intelligent AQI check...`);
   
   try {
     const usersSnapshot = await db.collection('users').get();
-    if (usersSnapshot.empty) {
-      console.log('No users found.');
-      return;
-    }
+    if (usersSnapshot.empty) return console.log('No users found.');
 
-    // --- OPTIMIZATION LOGIC START ---
-
-    // 1. Group all users by their location.
-    // We create a "map" where each key is a unique location (rounded to ~1km)
-    // and the value is an array of users at that location.
-    const locationsMap = new Map();
     for (const userDoc of usersSnapshot.docs) {
-      const userData = userDoc.data();
-      const { primaryLocation, fcmToken } = userData;
+      const user = { uid: userDoc.id, ...userDoc.data() };
+      const { 
+        primaryLocation, 
+        fcmToken, 
+        name, 
+        healthConditions = [], 
+        outdoorActivities = [],
+        lastNotificationTimestamps = {} 
+      } = user;
 
-      if (!primaryLocation || !fcmToken) {
-        continue; // Skip users with incomplete data
+      console.log(`\n📋 Processing user: ${name}`);
+      console.log(`   FCM Token exists: ${!!fcmToken}`);
+      console.log(`   Primary Location exists: ${!!primaryLocation}`);
+
+      if (!primaryLocation) {
+        console.log(`   ⏭️ Skipping: No primary location set`);
+        continue;
       }
 
-      // Round lat/lon to 2 decimal places to group nearby users.
-      const lat = primaryLocation.latitude.toFixed(2);
-      const lon = primaryLocation.longitude.toFixed(2);
-      const locationKey = `${lat},${lon}`;
-      
-      if (!locationsMap.has(locationKey)) {
-        locationsMap.set(locationKey, []);
+      if (!fcmToken) {
+        console.log(`   ⏭️ Skipping: No FCM token`);
+        continue;
       }
-      locationsMap.get(locationKey).push(userData);
-    }
 
-    console.log(`Found ${locationsMap.size} unique locations to check.`);
+      try {
+        // 1. Fetch live AQI data from the real API
+        console.log(`   🌍 Fetching AQI data for coordinates: ${primaryLocation.latitude}, ${primaryLocation.longitude}`);
+        const aqiUrl = `https://api.waqi.info/feed/geo:${primaryLocation.latitude};${primaryLocation.longitude}/?token=${waqiToken}`;
+        const response = await axios.get(aqiUrl);
 
-    // 2. Now, loop over the UNIQUE locations, making one API call per location.
-    for (const [locationKey, users] of locationsMap.entries()) {
-      const [lat, lon] = locationKey.split(',');
-      
-      const aqiUrl = `http://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${openWeatherApiKey}`;
-      const response = await axios.get(aqiUrl);
-      const aqi = response.data.list[0].main.aqi;
+        if (response.data.status !== 'ok') {
+          console.log(`   ❌ API returned status: ${response.data.status}`);
+          continue;
+        }
 
-      console.log(`AQI for location ${locationKey} is ${aqi}.`);
+        if (!response.data.data.aqi) {
+          console.log(`   ❌ No AQI data in response`);
+          continue;
+        }
 
-      // --- THIS IS THE CORRECTED PART ---
-      
-      // Keep this 'if' statement commented out for the test
-      // if (aqi >= 3) {
+        const currentAqi = response.data.data.aqi; // Use real AQI instead of hardcoding 125
+        console.log(`   ✅ Current AQI: ${currentAqi}`);
+        
+        const now = new Date();
 
-        // ✅ UNCOMMENT THIS LOOP. It is required.
-        for (const user of users) {
+        // 2. Save current AQI to history
+        const historyRef = db.collection('users').doc(user.uid).collection('aqi_history');
+        await historyRef.add({ aqi: currentAqi, timestamp: now });
+        console.log(`   📊 AQI saved to history`);
+
+        // 3. CHECK FOR SUDDEN SPIKE
+        const lastSpikeAlert = lastNotificationTimestamps.spike?.toDate() || new Date(0);
+        const spikeAlertDue = now - lastSpikeAlert > NOTIFICATION_COOLDOWN_HOURS * 3600 * 1000;
+        
+        if (spikeAlertDue) {""
+          const historySnapshot = await historyRef.orderBy('timestamp', 'desc').limit(2).get();
+          if (historySnapshot.docs.length > 1) {
+            const previousAqi = historySnapshot.docs[1].data().aqi;
+            const aqiDifference = currentAqi - previousAqi;
+            console.log(`   📈 Previous AQI: ${previousAqi}, Difference: ${aqiDifference}`);
+            
+            if (aqiDifference >= 40) {
+              console.log(`   🚨 SPIKE DETECTED! Sending alert...`);
+              const message = { 
+                notification: { 
+                  title: '⚠️ Sudden AQI Spike!', 
+                  body: `Hi ${name}, air quality worsened rapidly to an AQI of ${currentAqi}.` 
+                }, 
+                token: fcmToken 
+              };
+              await messaging.send(message);
+              await userDoc.ref.set({ lastNotificationTimestamps: { ...lastNotificationTimestamps, spike: now } }, { merge: true });
+              console.log(`   ✅ Spike alert sent to ${name}`);
+              continue; 
+            }
+          }
+        }
+        
+        // 4. PROACTIVE FORECAST CHECK
+        const lastForecastAlert = lastNotificationTimestamps.forecast?.toDate() || new Date(0);
+        const forecastAlertDue = now - lastForecastAlert > NOTIFICATION_COOLDOWN_HOURS * 3600 * 1000;
+        
+        if (outdoorActivities.length > 0 && forecastAlertDue) {
+          console.log(`   🏃 User has outdoor activities: ${outdoorActivities.join(', ')}`);
+          const forecast = response.data.data.forecast?.daily?.pm25;
           
-          // We define the variable as 'message' here...
-          const message = {
-            notification: {
-              title: '✅ Test Notification',
-              body: `Hi ${user.name}, your PurePulse alerts are working!`
-            },
-            token: user.fcmToken
+          if (forecast && forecast.length > 0) {
+            const todayStr = now.toISOString().slice(0, 10);
+            const todayForecast = forecast.find(day => day.day === todayStr);
+            
+            if (todayForecast) {
+              console.log(`   📅 Today's forecast avg: ${todayForecast.avg}`);
+              if (todayForecast.avg > 100) {
+                console.log(`   📢 FORECAST ALERT! Sending alert...`);
+                const message = { 
+                  notification: { 
+                    title: 'Heads-up for Today!', 
+                    body: `Hi ${name}, the AQI is forecasted to be poor today. You may want to reschedule your outdoor activities.` 
+                  }, 
+                  token: fcmToken 
+                };
+                await messaging.send(message);
+                await userDoc.ref.set({ lastNotificationTimestamps: { ...lastNotificationTimestamps, forecast: now } }, { merge: true });
+                console.log(`   ✅ Forecast alert sent to ${name}`);
+                continue;
+              }
+            }
+          }
+        }
+
+        // 5. STANDARD HIGH AQI CHECK
+        const lastStandardAlert = lastNotificationTimestamps.standard?.toDate() || new Date(0);
+        const standardAlertDue = now - lastStandardAlert > NOTIFICATION_COOLDOWN_HOURS * 3600 * 1000;
+        
+        const isSensitive = healthConditions.some(c => ['Asthma', 'Bronchitis', 'COPD'].includes(c));
+        const aqiThreshold = isSensitive ? 100 : 150;
+        
+        console.log(`   💓 Health conditions: ${healthConditions.length > 0 ? healthConditions.join(', ') : 'None'}`);
+        console.log(`   ⚠️ AQI Threshold: ${aqiThreshold} (${isSensitive ? 'Sensitive' : 'Standard'})`);
+        console.log(`   🕐 Standard alert due: ${standardAlertDue}`);
+
+        if (currentAqi > aqiThreshold && standardAlertDue) {
+          const description = getAqiDescription(currentAqi);
+          console.log(`   🔴 HIGH AQI DETECTED! Level: ${description}`);
+          const message = { 
+            notification: { 
+              title: 'High AQI Alert', 
+              body: `Hi ${name}, the current AQI is ${currentAqi} (${description}), which is above your personalized risk level.` 
+            }, 
+            token: fcmToken 
           };
-
-          console.log(`Sending notification to ${user.name}...`);
-          
-          // ...so we must use the same variable name, 'message', here.
-          messaging.send(message).catch(error => {
-            console.error('Failed to send notification to', user.name, error);
-          });
-        }// ✅ Also UNCOMMENT this closing bracket.
-
-      // Keep this 'if' statement's closing bracket commented out
-      // }
+          await messaging.send(message);
+          await userDoc.ref.set({ lastNotificationTimestamps: { ...lastNotificationTimestamps, standard: now } }, { merge: true });
+          console.log(`   ✅ High AQI alert sent to ${name}`);
+        } else if (currentAqi <= aqiThreshold) {
+          console.log(`   ✅ AQI is within safe limits (${currentAqi} ≤ ${aqiThreshold})`);
+        } else {
+          console.log(`   ⏰ Standard alert on cooldown`);
+        }
+      } catch (userError) {
+        console.error(`   ❌ Error processing user ${name}:`, userError.message);
+      }
     }
-    // --- OPTIMIZATION LOGIC END ---
-
   } catch (error) {
-    console.error('An error occurred during the AQI check process:', error);
+    console.error('❌ An error occurred during the AQI check process:', error);
   }
 };
 
-/**
- * Helper function to describe the AQI value.
- */
 function getAqiDescription(aqi) {
-  switch (aqi) {
-    case 1: return 'Good';
-    case 2: return 'Fair';
-    case 3: return 'Moderate';
-    case 4: return 'Poor';
-    case 5: return 'Very Poor';
-    default: return 'Unknown';
-  }
+  if (aqi > 300) return 'Hazardous';
+  if (aqi > 200) return 'Very Unhealthy';
+  if (aqi > 150) return 'Unhealthy';
+  if (aqi > 100) return 'Unhealthy for Sensitive Groups';
+  if (aqi > 50) return 'Moderate';
+  return 'Good';
 }
 
-// Schedule the task to run once every hour at the start of the hour.
+// Test schedule: Run every minute for testing
 cron.schedule('*/1 * * * *', checkAqiAndSendAlerts);
 
-console.log('✅ Backend server started. Optimized AQI checks will run every hour.');
+console.log('✅ Intelligent backend server started. Checks will run every minute.');

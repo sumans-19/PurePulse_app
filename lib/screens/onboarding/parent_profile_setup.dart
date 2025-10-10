@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:purepulse_app/screens/home/home_screen.dart';
 import 'package:purepulse_app/services/firestore_service.dart';
 import 'add_child_profile_screen.dart'; // We'll create this next
 
@@ -57,35 +58,37 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
   }
 
   Future<void> _saveAndProceed() async {
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
-    final firestoreService = context.read<FirestoreService>();
-    final user = FirebaseAuth.instance.currentUser;
+  final firestoreService = context.read<FirestoreService>();
+  final user = FirebaseAuth.instance.currentUser;
 
-    if (user == null) return;
+  if (user == null) return;
 
-    Map<String, dynamic> parentProfileData = {
-      'primaryLocation': {
-        'latitude': _currentPosition!.latitude,
-        'longitude': _currentPosition!.longitude,
-      },
-      'profileComplete': true,
-    };
+  Map<String, dynamic> parentProfileData = {
+    'primaryLocation': {
+      'latitude': _currentPosition!.latitude,
+      'longitude': _currentPosition!.longitude,
+    },
+    'profileComplete': true,
+  };
 
-    try {
-      await firestoreService.updateUser(user.uid, parentProfileData);
-      if (mounted) {
-        // Navigate to the "Add Child" screen instead of Home
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const AddChildProfileScreen()),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save profile: $e')),
+  try {
+    await firestoreService.updateUser(user.uid, parentProfileData);
+    if (mounted) {
+      // --- THIS IS THE CORRECTED NAVIGATION ---
+      // This is now the final step, so go to the HomeScreen.
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        (route) => false,
       );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to save profile: $e')),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:purepulse_app/screens/onboarding/add_child_profile_screen.dart';
 import 'package:purepulse_app/screens/onboarding/personal_profile_setup.dart';
 import 'package:purepulse_app/screens/onboarding/parent_profile_setup.dart';
 import 'package:purepulse_app/services/firestore_service.dart';
@@ -36,11 +37,14 @@ class UserTypeSelectionScreen extends StatelessWidget {
         // Navigate to the appropriate profile setup screen
         if (userType == 'personal') {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => PersonalProfileSetupScreen()),
+            MaterialPageRoute(
+                builder: (context) => PersonalProfileSetupScreen()),
           );
         } else {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => ParentProfileSetupScreen()),
+            MaterialPageRoute(
+                builder: (context) =>
+                    const AddChildProfileScreen(isFirstChild: true)),
           );
         }
       } catch (e) {
@@ -73,7 +77,8 @@ class UserTypeSelectionScreen extends StatelessWidget {
               _UserTypeCard(
                 icon: Icons.person_outline,
                 title: 'Personal Use',
-                description: 'Monitor air quality for yourself and get personalized alerts.',
+                description:
+                    'Monitor air quality for yourself and get personalized alerts.',
                 onTap: () => _selectUserType('personal'),
               ),
 
@@ -83,7 +88,8 @@ class UserTypeSelectionScreen extends StatelessWidget {
               _UserTypeCard(
                 icon: Icons.family_restroom_outlined,
                 title: 'Parental Control',
-                description: 'Monitor air quality for your children and manage their profiles.',
+                description:
+                    'Monitor air quality for your children and manage their profiles.',
                 onTap: () => _selectUserType('parent'),
               ),
             ],
@@ -123,7 +129,9 @@ class _UserTypeCard extends StatelessWidget {
             children: [
               Icon(icon, size: 48, color: Theme.of(context).primaryColor),
               const SizedBox(height: 12),
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(
                 description,
