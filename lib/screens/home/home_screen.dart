@@ -1,299 +1,222 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import '../../services/auth_service.dart';
-import '../../models/user_model.dart';
-import '../onboarding/personal_profile_setup.dart';
-import '../onboarding/parent_profile_setup.dart';
-import '../auth/login_screen.dart';
+import 'package:purepulse_app/services/aqi_service.dart';
+import 'package:purepulse_app/services/firestore_service.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  UserModel? _userModel;
-  bool _isLoading = true;
+  late Future<Map<String, dynamic>> _dataFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _dataFuture = _loadData();
   }
 
-  Future<void> _loadUserProfile() async {
-    final authService = context.read<AuthService>();
-    if (authService.currentUser != null) {
-      final userModel = await authService.getUserProfile(authService.currentUser!.uid);
-      if (mounted) {
-        setState(() {
-          _userModel = userModel;
-          _isLoading = false;
-        });
-      }
-    } else {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
+  Future<Map<String, dynamic>> _loadData() async {
+    final firestoreService = context.read<FirestoreService>();
+    final aqiService = context.read<AqiService>(); // Assuming you provide this
+    final user = FirebaseAuth.instance.currentUser!;
 
-  Future<void> _signOut() async {
-    final authService = context.read<AuthService>();
-    await authService.signOut();
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+    // Fetch user document
+    final userDoc = await firestoreService.getUser(user.uid);
+    final userData = userDoc.data() as Map<String, dynamic>;
+    
+    // Fetch AQI data using user's location
+    final location = userData['primaryLocation'];
+    final aqiData = await aqiService.getAqiData(location['latitude'], location['longitude']);
+
+    // If parent, fetch children data as well
+    if (userData['userType'] == 'parent') {
+      final childrenSnapshot = await firestoreService.getChildren(user.uid);
+      return {
+        'user': userData,
+        'aqi': aqiData,
+        'children': childrenSnapshot.docs,
+      };
     }
+
+    return {'user': userData, 'aqi': aqiData};
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PurePlus Dashboard'),
-        backgroundColor: Theme.of(context).primaryColor,
+        title: const Text('PurePulse Dashboard'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: _signOut,
-          ),
+            onPressed: () {
+              // TODO: Implement logout functionality
+              FirebaseAuth.instance.signOut();
+            },
+          )
         ],
       ),
-      body: Consumer<AuthService>(
-        builder: (context, authService, child) {
-          if (authService.isLoading || _isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _dataFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: Text('No data found.'));
           }
 
-          if (authService.currentUser == null) {
-            return const Center(
-              child: Text('No user logged in'),
-            );
+          final data = snapshot.data!;
+          final userType = data['user']['userType'];
+
+          if (userType == 'personal') {
+            return _buildPersonalDashboard(data['user'], data['aqi']);
+          } else {
+            return _buildParentDashboard(data['user'], data['aqi'], data['children']);
           }
+        },
+      ),
+    );
+  }
 
-          final user = _userModel;
-          final userName = user?.name.isNotEmpty == true ? user!.name : 'User';
+  // UI for Personal Users
+  Widget _buildPersonalDashboard(Map<String, dynamic> user, Map<String, dynamic> aqi) {
+    final aqiValue = aqi['main']['aqi']; // AQI is a value from 1 (Good) to 5 (Very Poor)
+    // You can build out a full UI here. This is a simple example.
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Hello, ${user['name']}!', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 24),
+          _AqiDisplayCard(aqiValue: aqiValue),
+          const SizedBox(height: 16),
+          _HealthRiskCard(user: user, aqi: aqiValue),
+        ],
+      ),
+    );
+  }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Greeting
-                Text(
-                  'Welcome back, $userName!',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Monitor air quality and protect your health',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 24),
+  // UI for Parent Users
+  Widget _buildParentDashboard(Map<String, dynamic> user, Map<String, dynamic> aqi, List<DocumentSnapshot> children) {
+    final aqiValue = aqi['main']['aqi'];
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: _AqiDisplayCard(aqiValue: aqiValue),
+        ),
+        const Divider(),
+        Expanded(
+          child: ListView.builder(
+            itemCount: children.length,
+            itemBuilder: (context, index) {
+              final child = children[index].data() as Map<String, dynamic>;
+              return ListTile(
+                title: Text(child['name']),
+                subtitle: Text('Risk: High'), // TODO: Calculate risk based on child's health
+                leading: const Icon(Icons.child_care),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
 
-                // Profile completion check
-                if (user == null || (user.userType == UserType.personal && (user.age == null || user.healthConditions == null)))
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.info_outline, color: Colors.orange),
-                      title: const Text('Complete your profile'),
-                      subtitle: const Text('Set up your health information for personalized recommendations'),
-                      trailing: const Icon(Icons.arrow_forward_ios),
-                      onTap: () {
-                        final currentUser = authService.currentUser!;
-                        final userName = user?.name ?? 'User';
-                        if (user?.userType == UserType.personal || user == null) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => PersonalProfileSetup(
-                              uid: currentUser.uid,
-                              email: currentUser.email!,
-                              name: userName,
-                            )),
-                          );
-                        } else {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => ParentProfileSetup(
-                              uid: currentUser.uid,
-                              email: currentUser.email!,
-                              name: userName,
-                            )),
-                          );
-                        }
-                      },
-                    ),
-                  ),
+// Reusable card for displaying AQI
+class _AqiDisplayCard extends StatelessWidget {
+  final int aqiValue;
+  const _AqiDisplayCard({required this.aqiValue});
 
-                const SizedBox(height: 16),
+  String _getAqiText(int value) {
+    switch (value) {
+      case 1: return 'Good';
+      case 2: return 'Fair';
+      case 3: return 'Moderate';
+      case 4: return 'Poor';
+      case 5: return 'Very Poor';
+      default: return 'Unknown';
+    }
+  }
 
-                // User Type Specific Content
-                if (user?.userType == UserType.personal) ...[
-                  // Personal Health Card
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.person,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Personal Health',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text('Your Risk Level: ${user?.getRiskLevel().name.toUpperCase()}'),
-                          if (user?.healthConditions != null && user!.healthConditions!.isNotEmpty)
-                            Text('Conditions: ${user!.healthConditions!.join(', ')}'),
-                          const SizedBox(height: 8),
-                          ElevatedButton(
-                            onPressed: () {
-                              // Navigate to air quality map or health tips
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Navigate to Air Quality Map')),
-                              );
-                            },
-                            child: const Text('Check Air Quality'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ] else if (user?.userType == UserType.parent) ...[
-                  // Parent Children Card
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.child_care,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Family Health',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          if (user?.childrenIds != null && user!.childrenIds!.isNotEmpty)
-                            Text('Children: ${user!.childrenIds!.length}')
-                          else
-                            const Text('No children profiles set up'),
-                          const SizedBox(height: 8),
-                          ElevatedButton(
-                            onPressed: () {
-                              // Navigate to add child or view children
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Navigate to Child Profiles')),
-                              );
-                            },
-                            child: const Text('Manage Children'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+   Color _getAqiColor(int value) {
+    switch (value) {
+      case 1: return Colors.green;
+      case 2: return Colors.yellow.shade700;
+      case 3: return Colors.orange;
+      case 4: return Colors.red;
+      case 5: return Colors.purple;
+      default: return Colors.grey;
+    }
+  }
 
-                const SizedBox(height: 16),
-
-                // General Features
-                Card(
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.map),
-                        title: const Text('Air Quality Map'),
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Open Air Quality Map')),
-                          );
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.info),
-                        title: const Text('Health Tips'),
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('View Health Tips')),
-                          );
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.settings),
-                        title: const Text('Settings'),
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Open Settings')),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const Text('Current Air Quality', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Text(
+              _getAqiText(aqiValue),
+              style: TextStyle(fontSize: 28, color: _getAqiColor(aqiValue), fontWeight: FontWeight.bold),
             ),
-          );
-        },
+             Text('AQI: $aqiValue'),
+          ],
+        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+    );
+  }
+}
+
+// Reusable card for displaying health risk
+class _HealthRiskCard extends StatelessWidget {
+  final Map<String, dynamic> user;
+  final int aqi;
+
+  const _HealthRiskCard({required this.user, required this.aqi});
+  
+  // TODO: Implement a real risk calculation algorithm
+  String _calculateRisk() {
+    final conditions = user['healthConditions'] as List;
+    if (conditions.isNotEmpty && aqi > 2) {
+      return 'High Risk';
+    }
+    if (aqi > 3) {
+      return 'Moderate Risk';
+    }
+    return 'Low Risk';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      child: ListTile(
+        title: const Text('Your Personalized Risk'),
+        subtitle: Text('Based on your health data and current AQI'),
+        trailing: Text(
+          _calculateRisk(),
+          style: TextStyle(
+            color: _calculateRisk() == 'High Risk' ? Colors.red : Colors.green,
+            fontWeight: FontWeight.bold,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Map',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: 0,
-        onTap: (index) {
-          // Handle navigation
-          if (index == 1) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Navigate to Map')),
-            );
-          } else if (index == 2) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Navigate to Profile')),
-            );
-          }
-        },
+        ),
       ),
     );
   }

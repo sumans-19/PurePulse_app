@@ -1,133 +1,89 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../models/user_model.dart';
-import '../../models/child_profile_model.dart';
-import '../../services/auth_service.dart';
-import '../home/home_screen.dart';
+import 'package:purepulse_app/services/firestore_service.dart';
+import 'add_child_profile_screen.dart'; // We'll create this next
 
-class ParentProfileSetup extends StatefulWidget {
-  final String uid;
-  final String name;
-  final String email;
-
-  const ParentProfileSetup({
-    Key? key,
-    required this.uid,
-    required this.name,
-    required this.email,
-  }) : super(key: key);
+class ParentProfileSetupScreen extends StatefulWidget {
+  const ParentProfileSetupScreen({super.key});
 
   @override
-  State<ParentProfileSetup> createState() => _ParentProfileSetupState();
+  State<ParentProfileSetupScreen> createState() =>
+      _ParentProfileSetupScreenState();
 }
 
-class _ParentProfileSetupState extends State<ParentProfileSetup> {
-  final List<ChildData> _children = [];
-  bool _isLoading = false;
+class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
+  final _formKey = GlobalKey<FormState>();
+  Position? _currentPosition;
+  bool _isFetchingLocation = false;
+  final TextEditingController _locationController = TextEditingController();
 
-  void _addChild() {
-    setState(() {
-      _children.add(ChildData());
-    });
+  @override
+  void dispose() {
+    _locationController.dispose();
+    super.dispose();
   }
 
-  void _removeChild(int index) {
-    setState(() {
-      _children.removeAt(index);
-    });
-  }
-
-  Future<void> _completeSetup() async {
-    // Validate all children data
-    for (var i = 0; i < _children.length; i++) {
-      if (!_children[i].validate()) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Please complete all fields for Child ${i + 1}'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
+  // This location logic is the same as the personal setup screen
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isFetchingLocation = true);
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permissions are denied')),
+          );
+          return;
+        }
       }
-    }
 
-    if (_children.isEmpty) {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      setState(() {
+        _currentPosition = position;
+        _locationController.text =
+            'Lat: ${position.latitude.toStringAsFixed(2)}, Lon: ${position.longitude.toStringAsFixed(2)}';
+      });
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please add at least one child profile'),
-          backgroundColor: Colors.orange,
-        ),
+        SnackBar(content: Text('Could not get location: $e')),
       );
-      return;
+    } finally {
+      setState(() => _isFetchingLocation = false);
     }
+  }
 
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _saveAndProceed() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final firestoreService = context.read<FirestoreService>();
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    Map<String, dynamic> parentProfileData = {
+      'primaryLocation': {
+        'latitude': _currentPosition!.latitude,
+        'longitude': _currentPosition!.longitude,
+      },
+      'profileComplete': true,
+    };
 
     try {
-      final firestore = FirebaseFirestore.instance;
-      final batch = firestore.batch();
-
-      // Create child profiles and collect IDs
-      final childrenIds = <String>[];
-
-      for (var childData in _children) {
-        final docRef = firestore.collection('children').doc();
-        childrenIds.add(docRef.id);
-
-        final childProfile = ChildProfile(
-          id: docRef.id,
-          parentId: widget.uid,
-          name: childData.nameController.text.trim(),
-          age: int.parse(childData.ageController.text),
-          healthConditions: childData.selectedHealthConditions.contains('None')
-              ? []
-              : childData.selectedHealthConditions,
-          schoolLocation: childData.schoolLocationController.text.trim(),
-          outdoorActivities: childData.outdoorActivities,
-          createdAt: DateTime.now(),
-        );
-
-        batch.set(docRef, childProfile.toMap());
-      }
-
-      // Create parent user profile
-      final userModel = UserModel(
-        uid: widget.uid,
-        email: widget.email,
-        name: widget.name,
-        userType: UserType.parent,
-        createdAt: DateTime.now(),
-        childrenIds: childrenIds,
-      );
-
-      batch.set(
-        firestore.collection('users').doc(widget.uid),
-        userModel.toMap(),
-      );
-
-      await batch.commit();
-
+      await firestoreService.updateUser(user.uid, parentProfileData);
       if (mounted) {
+        // Navigate to the "Add Child" screen instead of Home
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const AddChildProfileScreen()),
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to create profile: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save profile: $e')),
+      );
     }
   }
 
@@ -135,262 +91,53 @@ class _ParentProfileSetupState extends State<ParentProfileSetup> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Parent Profile Setup'),
+        title: const Text("Parent Profile Setup"),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Add Your Children',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'We\'ll monitor air quality and send you alerts to keep them safe',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Children forms
-                    ..._children.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final child = entry.value;
-                      return _ChildForm(
-                        childNumber: index + 1,
-                        childData: child,
-                        onRemove: () => _removeChild(index),
-                      );
-                    }).toList(),
-
-                    // Add child button
-                    OutlinedButton.icon(
-                      onPressed: _addChild,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Another Child'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text("Confirm Your Location",
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              const Text(
+                  "We need your primary location to monitor air quality for your family."),
+              const SizedBox(height: 24),
+              
+              TextFormField(
+                controller: _locationController,
+                decoration: const InputDecoration(
+                  labelText: "Primary Location",
+                  hintText: "Click the button to fetch",
                 ),
+                readOnly: true,
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Please fetch your location' : null,
               ),
-            ),
-
-            // Complete button (fixed at bottom)
-            Container(
-              padding: const EdgeInsets.all(24.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _getCurrentLocation,
+                icon: _isFetchingLocation
+                    ? const SizedBox(
+                        width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location),
+                label: Text(
+                    _isFetchingLocation ? 'Fetching...' : 'Get Current Location'),
               ),
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _completeSetup,
+              const SizedBox(height: 32),
+              
+              ElevatedButton(
+                onPressed: _saveAndProceed,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Text(
-                        'Complete Setup',
-                        style: TextStyle(fontSize: 16),
-                      ),
+                child: const Text('Save & Add First Child'),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ChildData {
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController ageController = TextEditingController();
-  final TextEditingController schoolLocationController = TextEditingController();
-  
-  final List<String> availableHealthConditions = [
-    'Asthma',
-    'Allergies',
-    'Respiratory Issues',
-    'None',
-  ];
-  
-  final List<String> selectedHealthConditions = [];
-  String? outdoorActivities;
-
-  bool validate() {
-    return nameController.text.isNotEmpty &&
-        ageController.text.isNotEmpty &&
-        int.tryParse(ageController.text) != null &&
-        schoolLocationController.text.isNotEmpty &&
-        selectedHealthConditions.isNotEmpty &&
-        outdoorActivities != null;
-  }
-
-  void dispose() {
-    nameController.dispose();
-    ageController.dispose();
-    schoolLocationController.dispose();
-  }
-}
-
-class _ChildForm extends StatefulWidget {
-  final int childNumber;
-  final ChildData childData;
-  final VoidCallback onRemove;
-
-  const _ChildForm({
-    required this.childNumber,
-    required this.childData,
-    required this.onRemove,
-  });
-
-  @override
-  State<_ChildForm> createState() => _ChildFormState();
-}
-
-class _ChildFormState extends State<_ChildForm> {
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Child ${widget.childNumber}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: widget.onRemove,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Name
-            TextFormField(
-              controller: widget.childData.nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Age
-            TextFormField(
-              controller: widget.childData.ageController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Age',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // School Location
-            TextFormField(
-              controller: widget.childData.schoolLocationController,
-              decoration: const InputDecoration(
-                labelText: 'School/Daycare Location',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Health Conditions
-            Text(
-              'Health Conditions',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: widget.childData.availableHealthConditions.map((condition) {
-                final isSelected = widget.childData.selectedHealthConditions.contains(condition);
-                return FilterChip(
-                  label: Text(condition),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    setState(() {
-                      if (condition == 'None') {
-                        widget.childData.selectedHealthConditions.clear();
-                        if (selected) {
-                          widget.childData.selectedHealthConditions.add(condition);
-                        }
-                      } else {
-                        widget.childData.selectedHealthConditions.remove('None');
-                        if (selected) {
-                          widget.childData.selectedHealthConditions.add(condition);
-                        } else {
-                          widget.childData.selectedHealthConditions.remove(condition);
-                        }
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-
-            // Outdoor Activities
-            Text(
-              'Outdoor Activities',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
-            ...['Minimal', 'Moderate (Sports/Play)', 'Very Active'].map((activity) {
-              return RadioListTile<String>(
-                title: Text(activity),
-                value: activity.toLowerCase(),
-                groupValue: widget.childData.outdoorActivities,
-                onChanged: (value) {
-                  setState(() {
-                    widget.childData.outdoorActivities = value;
-                  });
-                },
-                contentPadding: EdgeInsets.zero,
-              );
-            }).toList(),
-          ],
+            ],
+          ),
         ),
       ),
     );

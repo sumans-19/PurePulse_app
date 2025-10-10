@@ -1,100 +1,159 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:purepulse_app/services/firestore_service.dart';
+import 'package:purepulse_app/screens/home/home_screen.dart'; // We will create this later
 import 'package:provider/provider.dart';
-import '../../models/user_model.dart';
-import '../../services/auth_service.dart';
-import '../home/home_screen.dart';
 
-class PersonalProfileSetup extends StatefulWidget {
-  final String uid;
-  final String name;
-  final String email;
-
-  const PersonalProfileSetup({
-    Key? key,
-    required this.uid,
-    required this.name,
-    required this.email,
-  }) : super(key: key);
+class PersonalProfileSetupScreen extends StatefulWidget {
+  const PersonalProfileSetupScreen({super.key});
 
   @override
-  State<PersonalProfileSetup> createState() => _PersonalProfileSetupState();
+  State<PersonalProfileSetupScreen> createState() =>
+      _PersonalProfileSetupScreenState();
 }
 
-class _PersonalProfileSetupState extends State<PersonalProfileSetup> {
+class _PersonalProfileSetupScreenState
+    extends State<PersonalProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _ageController = TextEditingController();
-  final _locationController = TextEditingController();
-  
-  final List<String> _availableHealthConditions = [
-    'Asthma',
-    'COPD',
-    'Cardiovascular Disease',
-    'Allergies',
-    'Respiratory Issues',
-    'Heart Disease',
-    'None',
-  ];
-  
-  final List<String> _selectedHealthConditions = [];
-  String? _outdoorRoutine;
+
+  // State variables for form fields
+  DateTime? _dateOfBirth;
+  TimeOfDay? _routineStartTime;
+  TimeOfDay? _routineEndTime;
+  Position? _currentPosition;
+  bool _isFetchingLocation = false;
+
+  Map<String, bool> healthConditions = {
+    'Asthma': false,
+    'Allergies': false,
+    'Bronchitis': false,
+    'Other Respiratory Issues': false,
+  };
+
+  // Controllers
+  final TextEditingController _dobController = TextEditingController();
+  final TextEditingController _startTimeController = TextEditingController();
+  final TextEditingController _endTimeController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
 
   @override
   void dispose() {
-    _ageController.dispose();
+    _dobController.dispose();
+    _startTimeController.dispose();
+    _endTimeController.dispose();
     _locationController.dispose();
     super.dispose();
   }
 
-  Future<void> _completeSetup() async {
-    if (!_formKey.currentState!.validate()) return;
-    
-    if (_selectedHealthConditions.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one health condition (or None)'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-    
-    if (_outdoorRoutine == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select your outdoor routine'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    final userModel = UserModel(
-      uid: widget.uid,
-      email: widget.email,
-      name: widget.name,
-      userType: UserType.personal,
-      createdAt: DateTime.now(),
-      age: int.parse(_ageController.text),
-      healthConditions: _selectedHealthConditions.contains('None') 
-          ? [] 
-          : _selectedHealthConditions,
-      outdoorRoutine: _outdoorRoutine,
-      location: _locationController.text.trim(),
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _dateOfBirth ?? DateTime.now(),
+      firstDate: DateTime(1920),
+      lastDate: DateTime.now(),
     );
+    if (picked != null && picked != _dateOfBirth) {
+      setState(() {
+        _dateOfBirth = picked;
+        _dobController.text = DateFormat('MMMM d, y').format(picked);
+      });
+    }
+  }
 
-    final authService = context.read<AuthService>();
-    final success = await authService.createUserProfile(userModel);
+  Future<void> _selectTime(bool isStartTime) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStartTime) {
+          _routineStartTime = picked;
+          _startTimeController.text = picked.format(context);
+        } else {
+          _routineEndTime = picked;
+          _endTimeController.text = picked.format(context);
+        }
+      });
+    }
+  }
 
-    if (success && mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    } else if (mounted) {
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isFetchingLocation = true);
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permissions are denied')),
+          );
+          return;
+        }
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      setState(() {
+        _currentPosition = position;
+        _locationController.text =
+            'Lat: ${position.latitude.toStringAsFixed(2)}, Lon: ${position.longitude.toStringAsFixed(2)}';
+      });
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to create profile. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Could not get location: $e')),
+      );
+    } finally {
+      setState(() => _isFetchingLocation = false);
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_currentPosition == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select your primary location')),
+      );
+      return;
+    }
+
+    final firestoreService = context.read<FirestoreService>();
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    final selectedConditions = healthConditions.entries
+        .where((entry) => entry.value)
+        .map((entry) => entry.key)
+        .toList();
+
+    Map<String, dynamic> profileData = {
+      'dateOfBirth': _dateOfBirth,
+      'healthConditions': selectedConditions,
+      'outdoorRoutine': {
+        'start': _routineStartTime?.format(context),
+        'end': _routineEndTime?.format(context),
+      },
+      'primaryLocation': {
+        'latitude': _currentPosition!.latitude,
+        'longitude': _currentPosition!.longitude,
+      },
+      'profileComplete': true,
+    };
+
+    try {
+      await firestoreService.updateUser(user.uid, profileData);
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save profile: $e')),
       );
     }
   }
@@ -103,204 +162,112 @@ class _PersonalProfileSetupState extends State<PersonalProfileSetup> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Personal Profile Setup'),
+        title: const Text("Complete Your Profile"),
       ),
-      body: SafeArea(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
         child: Form(
           key: _formKey,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Tell us about yourself',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'This helps us provide personalized air quality alerts',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                ),
-                const SizedBox(height: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text("Tell us about yourself",
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              const Text(
+                  "This information helps us provide personalized air quality alerts."),
+              const SizedBox(height: 24),
 
-                // Age field
-                TextFormField(
-                  controller: _ageController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Age',
-                    prefixIcon: Icon(Icons.cake_outlined),
-                    border: OutlineInputBorder(),
-                    helperText: 'Your age helps us assess air quality risk',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your age';
-                    }
-                    final age = int.tryParse(value);
-                    if (age == null || age < 1 || age > 120) {
-                      return 'Please enter a valid age';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
+              // Date of Birth
+              TextFormField(
+                controller: _dobController,
+                decoration:
+                    const InputDecoration(labelText: "Date of Birth"),
+                readOnly: true,
+                onTap: _selectDate,
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Please select your date of birth' : null,
+              ),
+              const SizedBox(height: 16),
 
-                // Location field
-                TextFormField(
-                  controller: _locationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Location (City)',
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                    border: OutlineInputBorder(),
-                    helperText: 'We\'ll monitor air quality in your area',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your location';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                // Health Conditions
-                Text(
-                  'Health Conditions',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Select all that apply (this helps us customize alerts)',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _availableHealthConditions.map((condition) {
-                    final isSelected = _selectedHealthConditions.contains(condition);
-                    return FilterChip(
-                      label: Text(condition),
-                      selected: isSelected,
-                      onSelected: (selected) {
-                        setState(() {
-                          if (condition == 'None') {
-                            // If None is selected, clear all others
-                            _selectedHealthConditions.clear();
-                            if (selected) {
-                              _selectedHealthConditions.add(condition);
-                            }
-                          } else {
-                            // If any other condition is selected, remove None
-                            _selectedHealthConditions.remove('None');
-                            if (selected) {
-                              _selectedHealthConditions.add(condition);
-                            } else {
-                              _selectedHealthConditions.remove(condition);
-                            }
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 24),
-
-                // Outdoor Routine
-                Text(
-                  'Outdoor Routine',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                _OutdoorRoutineOption(
-                  title: 'Minimal (Indoor most of the time)',
-                  value: 'minimal',
-                  groupValue: _outdoorRoutine,
-                  onChanged: (value) {
+              // Health Conditions
+              Text("Pre-existing Health Conditions",
+                  style: Theme.of(context).textTheme.titleMedium),
+              ...healthConditions.keys.map((String key) {
+                return CheckboxListTile(
+                  title: Text(key),
+                  value: healthConditions[key],
+                  onChanged: (bool? value) {
                     setState(() {
-                      _outdoorRoutine = value;
+                      healthConditions[key] = value!;
                     });
                   },
-                ),
-                _OutdoorRoutineOption(
-                  title: 'Moderate (Regular commute, occasional outdoor activity)',
-                  value: 'moderate',
-                  groupValue: _outdoorRoutine,
-                  onChanged: (value) {
-                    setState(() {
-                      _outdoorRoutine = value;
-                    });
-                  },
-                ),
-                _OutdoorRoutineOption(
-                  title: 'Active (Daily outdoor exercise or work)',
-                  value: 'active',
-                  groupValue: _outdoorRoutine,
-                  onChanged: (value) {
-                    setState(() {
-                      _outdoorRoutine = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 32),
+                );
+              }).toList(),
+              const SizedBox(height: 16),
 
-                // Complete button
-                ElevatedButton(
-                  onPressed: _completeSetup,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+              // Outdoor Routine
+              Text("Typical Outdoor Routine",
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _startTimeController,
+                      decoration: const InputDecoration(labelText: "From"),
+                      readOnly: true,
+                      onTap: () => _selectTime(true),
                     ),
                   ),
-                  child: const Text(
-                    'Complete Setup',
-                    style: TextStyle(fontSize: 16),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _endTimeController,
+                      decoration: const InputDecoration(labelText: "To"),
+                      readOnly: true,
+                      onTap: () => _selectTime(false),
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Location
+              TextFormField(
+                controller: _locationController,
+                decoration: const InputDecoration(
+                  labelText: "Primary Location",
+                  hintText: "Click the button to fetch",
                 ),
-              ],
-            ),
+                readOnly: true,
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Please fetch your location' : null,
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _getCurrentLocation,
+                icon: _isFetchingLocation
+                    ? const SizedBox(
+                        width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location),
+                label: Text(
+                    _isFetchingLocation ? 'Fetching...' : 'Get Current Location'),
+              ),
+              const SizedBox(height: 32),
+
+              // Save Button
+              ElevatedButton(
+                onPressed: _saveProfile,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text('Save Profile & Continue'),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _OutdoorRoutineOption extends StatelessWidget {
-  final String title;
-  final String value;
-  final String? groupValue;
-  final ValueChanged<String?> onChanged;
-
-  const _OutdoorRoutineOption({
-    required this.title,
-    required this.value,
-    required this.groupValue,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return RadioListTile<String>(
-      title: Text(title),
-      value: value,
-      groupValue: groupValue,
-      onChanged: onChanged,
-      contentPadding: EdgeInsets.zero,
     );
   }
 }
