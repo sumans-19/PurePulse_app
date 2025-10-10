@@ -1,11 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
-import 'auth/login_screen.dart';
-import 'home/home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:purepulse_app/screens/auth/login_screen.dart';
+import 'package:purepulse_app/screens/home/home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -15,68 +15,41 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkAuthStatus();
+    // Use a short delay to allow Firebase to initialize, then check auth state.
+    Timer(const Duration(seconds: 2), _checkAuthState);
   }
 
-  Future<void> _checkAuthStatus() async {
-    await Future.delayed(const Duration(seconds: 2));
+  void _checkAuthState() {
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (!mounted) return; // Ensure the widget is still in the tree.
 
-    if (!mounted) return;
-
-    final authService = context.read<AuthService>();
-    final user = authService.currentUser;
-
-    if (user != null) {
-      // User is logged in, check if profile exists
-      final userProfile = await authService.getUserProfile(user.uid);
-      
-      if (userProfile != null && mounted) {
-        // Profile exists, go to home
+      if (user == null) {
+        // User is signed out, go to LoginScreen
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
         );
-      } else if (mounted) {
-        // Profile doesn't exist (shouldn't happen), go to login
+      } else {
+        // User is signed in, go to HomeScreen
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       }
-    } else if (mounted) {
-      // Not logged in, go to login
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // Show a logo and a loading indicator while we check
+    return const Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.air,
-              size: 100,
-              color: Theme.of(context).primaryColor,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'PurePlus',
-              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Breathe Safe, Live Better',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-            ),
-            const SizedBox(height: 32),
-            const CircularProgressIndicator(),
+            // You can add your app logo here if you have one
+            // FlutterLogo(size: 80),
+            Text('PurePulse', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            SizedBox(height: 24),
+            CircularProgressIndicator(),
           ],
         ),
       ),

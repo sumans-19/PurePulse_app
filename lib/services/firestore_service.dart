@@ -60,4 +60,12 @@ class FirestoreService {
   Future<QuerySnapshot> getChildren(String parentId) {
     return _db.collection('users').doc(parentId).collection('children').get();
   }
+  
+   Future<void> saveUserToken(String uid, String token) async {
+    try {
+      await _db.collection('users').doc(uid).update({'fcmToken': token});
+    } catch (e) {
+      print("Error saving user token: $e");
+    }
+  }
 }
