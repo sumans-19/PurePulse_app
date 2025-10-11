@@ -174,19 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
                   },
                 ),
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  if (mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                          builder: (context) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  }
-                },
-              ),
             ],
           ),
           body: IndexedStack(
