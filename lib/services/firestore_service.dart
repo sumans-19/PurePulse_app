@@ -37,7 +37,8 @@ class FirestoreService {
     }
   }
 
-  Future<void> addChildProfile(String parentId, Map<String, dynamic> childData) async {
+  Future<void> addChildProfile(
+      String parentId, Map<String, dynamic> childData) async {
     try {
       // This creates a 'children' subcollection under the parent's document
       await _db
@@ -51,9 +52,10 @@ class FirestoreService {
     }
   }
 
-   Future<void> clearAllNotifications(String userId) async {
+  Future<void> clearAllNotifications(String userId) async {
     try {
-      final collectionRef = _db.collection('users').doc(userId).collection('notifications');
+      final collectionRef =
+          _db.collection('users').doc(userId).collection('notifications');
       final querySnapshot = await collectionRef.get();
 
       // Use a batch write to delete all documents efficiently
@@ -61,7 +63,7 @@ class FirestoreService {
       for (final doc in querySnapshot.docs) {
         batch.delete(doc.reference);
       }
-      
+
       await batch.commit();
     } catch (e) {
       print("Error clearing all notifications: $e");
@@ -77,8 +79,8 @@ class FirestoreService {
   Future<QuerySnapshot> getChildren(String parentId) {
     return _db.collection('users').doc(parentId).collection('children').get();
   }
-  
-   Future<void> saveUserToken(String uid, String token) async {
+
+  Future<void> saveUserToken(String uid, String token) async {
     try {
       await _db.collection('users').doc(uid).update({'fcmToken': token});
     } catch (e) {
@@ -86,19 +88,29 @@ class FirestoreService {
     }
   }
 
-  // Add this new method to your FirestoreService class
-
-Future<void> deleteNotification(String userId, String notificationId) async {
-  try {
+  Future<void> updateChildProfile(
+      String parentId, String childId, Map<String, dynamic> data) async {
     await _db
         .collection('users')
-        .doc(userId)
-        .collection('notifications')
-        .doc(notificationId)
-        .delete();
-  } catch (e) {
-    print("Error deleting notification: $e");
-    // Optionally re-throw or handle the error
+        .doc(parentId)
+        .collection('children')
+        .doc(childId)
+        .update(data);
   }
-}
+
+  // Add this new method to your FirestoreService class
+
+  Future<void> deleteNotification(String userId, String notificationId) async {
+    try {
+      await _db
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .doc(notificationId)
+          .delete();
+    } catch (e) {
+      print("Error deleting notification: $e");
+      // Optionally re-throw or handle the error
+    }
+  }
 }

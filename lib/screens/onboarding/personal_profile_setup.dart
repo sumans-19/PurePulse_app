@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:purepulse_app/services/firestore_service.dart';
 import 'package:purepulse_app/screens/home/home_screen.dart';
 import 'package:provider/provider.dart';
 
 class PersonalProfileSetupScreen extends StatefulWidget {
-  const PersonalProfileSetupScreen({super.key});
+  final Map<String, dynamic>? profileData;
+
+  const PersonalProfileSetupScreen({super.key, this.profileData});
 
   @override
   State<PersonalProfileSetupScreen> createState() =>
@@ -18,29 +21,28 @@ class _PersonalProfileSetupScreenState
     extends State<PersonalProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // --- State Variables ---
   DateTime? _dateOfBirth;
-  bool _isFetchingLocation = false;
-  
-  // Storing coordinates directly for flexibility
   double? _latitude;
   double? _longitude;
+  bool _isFetchingLocation = false;
 
-  // Hybrid system for health conditions
   final List<String> _commonConditions = [
-    'Asthma', 'Allergies', 'Bronchitis', 'COPD', 'Hay Fever', 'Sinusitis'
+    'Asthma',
+    'Allergies',
+    'Bronchitis',
+    'COPD',
+    'Hay Fever',
+    'Sinusitis'
   ];
   final List<String> _selectedConditions = [];
   final TextEditingController _conditionController = TextEditingController();
 
-  // List for multiple outdoor activities
   final List<Map<String, dynamic>> _activities = [];
 
-  // Controllers
   final TextEditingController _dobController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
 
-  // Predefined locations with Hyderabad as the default
+  String? _selectedCity;
   final Map<String, Map<String, double>> _predefinedLocations = {
     'Hyderabad': {'lat': 17.3850, 'lon': 78.4867},
     'Bangalore': {'lat': 12.9716, 'lon': 77.5946},
@@ -48,13 +50,31 @@ class _PersonalProfileSetupScreenState
     'Mumbai': {'lat': 19.0760, 'lon': 72.8777},
     'Chennai': {'lat': 13.0827, 'lon': 80.2707},
   };
-  String? _selectedCity;
 
   @override
   void initState() {
     super.initState();
-    // Set Hyderabad as the default selection
-    _updateLocationFromCity('Hyderabad');
+    if (widget.profileData != null) {
+      final data = widget.profileData!;
+      _dateOfBirth = (data['dateOfBirth'] as Timestamp?)?.toDate();
+      if (_dateOfBirth != null) {
+        _dobController.text = DateFormat('MMMM d, y').format(_dateOfBirth!);
+      }
+      _selectedConditions
+          .addAll(List<String>.from(data['healthConditions'] ?? []));
+      _activities.addAll(
+          List<Map<String, dynamic>>.from(data['outdoorActivities'] ?? []));
+
+      final location = data['primaryLocation'];
+      if (location != null) {
+        _latitude = location['latitude'];
+        _longitude = location['longitude'];
+        _locationController.text =
+            'Lat: ${_latitude?.toStringAsFixed(2)}, Lon: ${_longitude?.toStringAsFixed(2)}';
+      }
+    } else {
+      _updateLocationFromCity('Hyderabad');
+    }
   }
 
   @override
@@ -64,7 +84,7 @@ class _PersonalProfileSetupScreenState
     _conditionController.dispose();
     super.dispose();
   }
-  
+
   void _updateLocationFromCity(String cityName) {
     final location = _predefinedLocations[cityName]!;
     setState(() {
@@ -74,7 +94,7 @@ class _PersonalProfileSetupScreenState
       _locationController.text = 'Selected: $cityName';
     });
   }
-  
+
   void _addCustomCondition(String condition) {
     final trimmedCondition = condition.trim();
     if (trimmedCondition.isNotEmpty &&
@@ -98,23 +118,43 @@ class _PersonalProfileSetupScreenState
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Add Outdoor Activity'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.directions_walk, color: Colors.green),
+              SizedBox(width: 12),
+              Text('Add Outdoor Activity'),
+            ],
+          ),
           content: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextFormField(
-                  decoration: const InputDecoration(
-                      labelText: 'Activity Name (e.g., Running)'),
+                  decoration: InputDecoration(
+                    labelText: 'Activity Name',
+                    hintText: 'e.g., Running, Walking',
+                    prefixIcon: const Icon(Icons.fitness_center),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   validator: (value) => value == null || value.isEmpty
                       ? 'Please enter a name'
                       : null,
                   onSaved: (value) => activityName = value,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: startTimeController,
-                  decoration: const InputDecoration(labelText: 'Start Time'),
+                  decoration: InputDecoration(
+                    labelText: 'Start Time',
+                    prefixIcon: const Icon(Icons.access_time),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   readOnly: true,
                   onTap: () async {
                     startTime = await showTimePicker(
@@ -127,9 +167,16 @@ class _PersonalProfileSetupScreenState
                       ? 'Please select a time'
                       : null,
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: endTimeController,
-                  decoration: const InputDecoration(labelText: 'End Time'),
+                  decoration: InputDecoration(
+                    labelText: 'End Time',
+                    prefixIcon: const Icon(Icons.access_time),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   readOnly: true,
                   onTap: () async {
                     endTime = await showTimePicker(
@@ -147,9 +194,16 @@ class _PersonalProfileSetupScreenState
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel')),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
               onPressed: () {
                 if (formKey.currentState!.validate()) {
                   formKey.currentState!.save();
@@ -163,7 +217,7 @@ class _PersonalProfileSetupScreenState
                   Navigator.of(context).pop();
                 }
               },
-              child: const Text('Add'),
+              child: const Text('Add Activity'),
             ),
           ],
         );
@@ -177,6 +231,16 @@ class _PersonalProfileSetupScreenState
       initialDate: _dateOfBirth ?? DateTime.now(),
       firstDate: DateTime(1920),
       lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.indigo.shade600,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null && picked != _dateOfBirth) {
       setState(() {
@@ -217,7 +281,7 @@ class _PersonalProfileSetupScreenState
       setState(() => _isFetchingLocation = false);
     }
   }
-  
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     if (_latitude == null || _longitude == null) {
@@ -245,10 +309,14 @@ class _PersonalProfileSetupScreenState
     try {
       await firestoreService.updateUser(user.uid, profileData);
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-          (route) => false,
-        );
+        if (widget.profileData != null) {
+          Navigator.of(context).pop();
+        } else {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
+          );
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -261,180 +329,483 @@ class _PersonalProfileSetupScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Complete Your Profile"),
+        elevation: 0,
+        backgroundColor: Colors.indigo.shade600,
+        title: Text(
+          widget.profileData != null ? "Edit Profile" : "Complete Your Profile",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text("Tell us about yourself",
-                  style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 8),
-              const Text(
-                  "This information helps us provide personalized air quality alerts."),
-              const SizedBox(height: 24),
-              
-              TextFormField(
-                controller: _dobController,
-                decoration: const InputDecoration(labelText: "Date of Birth"),
-                readOnly: true,
-                onTap: _selectDate,
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Please select your date of birth'
-                    : null,
-              ),
-              const SizedBox(height: 24),
-
-              Text("Health Conditions (if any)",
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              const Text("Select from common conditions:",
-                  style: TextStyle(color: Colors.grey)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8.0,
-                runSpacing: 4.0,
-                children: _commonConditions.map((condition) {
-                  final isSelected = _selectedConditions.contains(condition);
-                  return FilterChip(
-                    label: Text(condition),
-                    selected: isSelected,
-                    onSelected: (bool selected) {
-                      setState(() {
-                        if (selected) {
-                          _selectedConditions.add(condition);
-                        } else {
-                          _selectedConditions.remove(condition);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _conditionController,
-                decoration: const InputDecoration(
-                  hintText: 'Or add a custom condition and press Enter',
-                  border: OutlineInputBorder(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.indigo.shade50, Colors.white],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: const [0.0, 0.3],
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header Section
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.indigo.shade100,
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.person_outline,
+                          size: 48, color: Colors.indigo.shade600),
+                      const SizedBox(height: 12),
+                      Text(
+                        "Tell us about yourself",
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "This helps us provide personalized air quality alerts",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
                 ),
-                onSubmitted: _addCustomCondition,
-              ),
-              const SizedBox(height: 16),
-              if (_selectedConditions.isNotEmpty)
-                const Text("Your selected conditions:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Wrap(
-                spacing: 8.0,
-                runSpacing: 4.0,
-                children: _selectedConditions.map((condition) {
-                  return Chip(
-                    label: Text(condition),
-                    deleteIcon: const Icon(Icons.close, size: 16),
-                    onDeleted: () {
-                      setState(() {
-                        _selectedConditions.remove(condition);
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
 
-              Text("Your Outdoor Activities",
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              if (_activities.isEmpty)
-                const Center(
-                    child: Text('No activities added yet.',
-                        style: TextStyle(color: Colors.grey))),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _activities.length,
-                itemBuilder: (context, index) {
-                  final activity = _activities[index];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: ListTile(
-                      title: Text(activity['name']),
-                      subtitle: Text(
-                          '${activity['startTime']} - ${activity['endTime']}'),
-                      trailing: IconButton(
-                        icon:
-                            const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () {
-                          setState(() {
-                            _activities.removeAt(index);
-                          });
+                const SizedBox(height: 24),
+
+                // Date of Birth Section
+                _SectionCard(
+                  icon: Icons.cake,
+                  title: 'Date of Birth',
+                  color: Colors.blue,
+                  child: TextFormField(
+                    controller: _dobController,
+                    decoration: InputDecoration(
+                      hintText: 'Select your date of birth',
+                      prefixIcon: const Icon(Icons.calendar_today),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                    ),
+                    readOnly: true,
+                    onTap: _selectDate,
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Please select your date of birth'
+                        : null,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Health Conditions Section
+                _SectionCard(
+                  icon: Icons.health_and_safety,
+                  title: 'Health Conditions',
+                  color: Colors.pink,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Select common conditions:",
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: _commonConditions.map((condition) {
+                          final isSelected =
+                              _selectedConditions.contains(condition);
+                          return FilterChip(
+                            label: Text(condition),
+                            selected: isSelected,
+                            selectedColor: Colors.pink.shade100,
+                            checkmarkColor: Colors.pink.shade700,
+                            onSelected: (bool selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedConditions.add(condition);
+                                } else {
+                                  _selectedConditions.remove(condition);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _conditionController,
+                        decoration: InputDecoration(
+                          hintText: 'Add custom condition',
+                          prefixIcon: const Icon(Icons.add_circle_outline),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                        ),
+                        onSubmitted: _addCustomCondition,
+                      ),
+                      if (_selectedConditions.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          "Your selected conditions:",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8.0,
+                          runSpacing: 8.0,
+                          children: _selectedConditions.map((condition) {
+                            return Chip(
+                              label: Text(condition),
+                              deleteIcon:
+                                  const Icon(Icons.close, size: 18),
+                              onDeleted: () {
+                                setState(() {
+                                  _selectedConditions.remove(condition);
+                                });
+                              },
+                              backgroundColor: Colors.pink.shade50,
+                              side: BorderSide(color: Colors.pink.shade200),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Activities Section
+                _SectionCard(
+                  icon: Icons.directions_walk,
+                  title: 'Outdoor Activities',
+                  color: Colors.green,
+                  child: Column(
+                    children: [
+                      if (_activities.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'No activities added yet',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          ),
+                        )
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _activities.length,
+                          itemBuilder: (context, index) {
+                            final activity = _activities[index];
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.green.shade200),
+                              ),
+                              child: ListTile(
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade600,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.directions_walk,
+                                      color: Colors.white, size: 20),
+                                ),
+                                title: Text(
+                                  activity['name'],
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                subtitle: Text(
+                                  '${activity['startTime']} - ${activity['endTime']}',
+                                  style: TextStyle(color: Colors.green.shade900),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.red),
+                                  onPressed: () {
+                                    setState(() {
+                                      _activities.removeAt(index);
+                                    });
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Activity'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.green.shade700,
+                            side: BorderSide(color: Colors.green.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: _showAddActivityDialog,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Location Section
+                _SectionCard(
+                  icon: Icons.location_on,
+                  title: 'Primary Location',
+                  color: Colors.orange,
+                  child: Column(
+                    children: [
+                      DropdownButtonFormField<String>(
+                        value: _selectedCity,
+                        decoration: InputDecoration(
+                          labelText: 'Select a City',
+                          prefixIcon: const Icon(Icons.location_city),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                        ),
+                        items: _predefinedLocations.keys.map((String city) {
+                          return DropdownMenuItem<String>(
+                            value: city,
+                            child: Text(city),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            _updateLocationFromCity(newValue);
+                          }
                         },
                       ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('Add Activity'),
-                onPressed: _showAddActivityDialog,
-              ),
-              const SizedBox(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        child: Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                'OR',
+                                style: TextStyle(color: Colors.grey.shade600),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              _isFetchingLocation ? null : _getCurrentLocation,
+                          icon: _isFetchingLocation
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.my_location, color: Colors.white),
+                          label: Text(
+                            _isFetchingLocation
+                                ? 'Fetching...'
+                                : 'Use Current Location',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange.shade600,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_locationController.text.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.orange.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle,
+                                  color: Colors.orange.shade700, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _locationController.text,
+                                  style: TextStyle(
+                                    color: Colors.orange.shade900,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
 
-              Text("Your Primary Location", style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _selectedCity,
-                decoration: const InputDecoration(
-                  labelText: 'Select a City',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 32),
+
+                // Save Button
+                SizedBox(
+                  width: double.infinity,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.indigo.shade500, Colors.indigo.shade700],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.indigo.shade300.withOpacity(0.5),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _saveProfile,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          alignment: Alignment.center,
+                          child: Text(
+                            widget.profileData != null
+                                ? 'Save Changes'
+                                : 'Save Profile & Continue',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                items: _predefinedLocations.keys.map((String city) {
-                  return DropdownMenuItem<String>(
-                    value: city,
-                    child: Text(city),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    _updateLocationFromCity(newValue);
-                  }
-                },
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16.0),
-                child: Center(child: Text('OR')),
-              ),
-              ElevatedButton.icon(
-                onPressed: _isFetchingLocation ? null : _getCurrentLocation,
-                icon: _isFetchingLocation
-                    ? const SizedBox(
-                        width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.my_location),
-                label: Text(
-                    _isFetchingLocation ? 'Fetching...' : 'Use My Current Location'),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _locationController,
-                readOnly: true,
-                decoration: const InputDecoration(
-                  labelText: "Selected Location",
-                  border: InputBorder.none,
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Color color;
+  final Widget child;
+
+  const _SectionCard({
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                child: Icon(icon, size: 22, color: color),
               ),
-              const SizedBox(height: 24),
-              
-              ElevatedButton(
-                onPressed: _saveProfile,
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: const Text('Save Profile & Continue'),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 16),
+          child,
+        ],
       ),
     );
   }
