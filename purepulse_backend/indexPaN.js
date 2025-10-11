@@ -19,7 +19,6 @@ async function checkAqiAndSendAlerts() {
     try {
       const user = { uid: userDoc.id, ...userDoc.data() };
       
-      // Skip any user who is not a parent or doesn't have a token
       if (!user.fcmToken || user.userType !== 'parent') continue;
       
       console.log(`-> Found parent: ${user.name}. Checking children...`);
@@ -38,25 +37,26 @@ async function checkAqiAndSendAlerts() {
 
         if (currentAqi > childThreshold) {
           console.log(`    ALERT: AQI is above threshold for ${child.name}.`);
+          
+          // --- THIS IS THE ONLY CHANGED PART ---
           const message = {
             notification: {
-              title: `✅ High AQI Alert for ${child.name}`,
-              body: `Hi ${user.name}, the AQI is ${currentAqi}, which is above the risk level for ${child.name}.`
+              title: `High AQI Alert for ${child.name}`,
+              body: `Heads-up ${user.name}! The AQI is now ${currentAqi}, which poses a risk for ${child.name} due to their health conditions. It's recommended to limit their outdoor activities today.`
             },
             token: user.fcmToken
           };
+          // ------------------------------------
+
           await messaging.send(message);
           console.log(`    SUCCESS: Sent parent alert for ${child.name}.`);
 
-          // --- THIS IS THE ADDED CODE ---
-          // Save a copy of the notification to the history subcollection
           await db.collection('users').doc(user.uid).collection('notifications').add({
               title: message.notification.title,
               body: message.notification.body,
               timestamp: admin.firestore.FieldValue.serverTimestamp()
           });
           console.log(`    -> Saved parent alert to history for ${user.name}.`);
-          // ------------------------------------
           
           break; 
         }

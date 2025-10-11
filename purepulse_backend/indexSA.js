@@ -28,29 +28,28 @@ async function checkAqiAndSendAlerts() {
       console.log(`-> Checking ${user.name}. Current: ${currentAqi}, Previous: ${previousAqi}, Difference: ${difference}.`);
 
       if (difference >= 40) {
+        
+        // --- THIS IS THE ONLY CHANGED PART ---
         const message = { 
           notification: { 
-            title: '✅ Spike Alert Test', 
-            body: `Hi ${user.name}, air quality worsened rapidly to ${currentAqi}.` 
+            title: '⚠️ Sudden Spike Alert!', 
+            body: `Hi ${user.name}, the AQI has rapidly worsened to ${currentAqi}. It's recommended to close windows and avoid outdoor activity for the next hour.` 
           }, 
           token: user.fcmToken 
         };
+        // ------------------------------------
 
         await messaging.send(message);
         console.log(`   SUCCESS: Sent spike alert to ${user.name}.`);
 
-        // --- THIS IS THE ONLY ADDED CODE ---
-        // Save a copy of the notification to the history subcollection
         await db.collection('users').doc(user.uid).collection('notifications').add({
             title: message.notification.title,
             body: message.notification.body,
             timestamp: admin.firestore.FieldValue.serverTimestamp()
         });
         console.log(`   -> Saved spike alert to history for ${user.name}.`);
-        // ------------------------------------
       }
     } catch (error) {
-      // If an error occurs for one user, log it and continue the loop
       const userName = userDoc.data().name || userDoc.id;
       console.error(`   ERROR: Failed to process user "${userName}". Reason: ${error.message}`);
     }

@@ -1,4 +1,4 @@
-// TEST SCRIPT 1: STANDARD ALERT (with Error Handling and History)
+// TEST SCRIPT 1: STANDARD ALERT (with Enhanced Notification)
 require('dotenv').config();
 const admin = require('firebase-admin');
 const cron = require('node-cron');
@@ -10,6 +10,12 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 const messaging = admin.messaging();
+
+// Helper function to get the risk level description
+function getAqiDescription(aqi) {
+  if (aqi > 100) return 'Unhealthy for Sensitive Groups';
+  return 'Good';
+}
 
 async function checkAqiAndSendAlerts() {
   console.log(`[TEST 1] Running Standard Alert check...`);
@@ -26,25 +32,27 @@ async function checkAqiAndSendAlerts() {
 
       console.log(`-> Checking ${user.name}. Sensitive: ${isSensitive}. Threshold: ${aqiThreshold}.`);
       if (currentAqi > aqiThreshold) {
+        
+        // --- THIS IS THE ONLY CHANGED PART ---
+        const description = getAqiDescription(currentAqi);
         const message = { 
           notification: { 
-            title: '✅ Standard Alert Test', 
-            body: `Hi ${user.name}, the AQI of ${currentAqi} is above your risk level.` 
+            title: `⚠️ High AQI Alert - ${description}`, 
+            body: `Hi ${user.name}, the AQI is now ${currentAqi}, which poses a risk due to your health conditions. It's recommended to limit prolonged outdoor exertion today.`
           }, 
           token: user.fcmToken 
         };
+        // ------------------------------------
+
         await messaging.send(message);
         console.log(`   SUCCESS: Sent standard alert to ${user.name}.`);
 
-        // --- THIS IS THE ONLY ADDED CODE ---
-        // Save a copy of the notification to the history subcollection
         await db.collection('users').doc(user.uid).collection('notifications').add({
             title: message.notification.title,
             body: message.notification.body,
             timestamp: admin.firestore.FieldValue.serverTimestamp()
         });
         console.log(`   -> Saved standard alert to history for ${user.name}.`);
-        // ------------------------------------
 
       }
     } catch (error) {
