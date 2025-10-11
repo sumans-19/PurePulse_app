@@ -60,7 +60,7 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      
+
       setState(() {
         _isLoading = false;
         _selectedType = null;
@@ -85,9 +85,8 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.blue.shade50,
-              Colors.white,
-              Colors.green.shade50,
+              const Color(0xFFFAF5F0),
+              const Color(0xFFF0F9FA),
             ],
           ),
         ),
@@ -106,30 +105,41 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               const SizedBox(height: 16),
-                              
+
                               // Welcome section
                               Column(
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
-                                      color: Colors.blue.shade100.withOpacity(0.5),
+                                      color: Colors.white,
                                       shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFF06b6d4),
+                                        width: 2,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF06b6d4).withAlpha(50),
+                                          blurRadius: 12,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
                                     ),
-                                    child: Icon(
+                                    child: const Icon(
                                       Icons.air,
                                       size: 40,
-                                      color: Colors.blue.shade700,
+                                      color: Color(0xFF06b6d4),
                                     ),
                                   ),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 20),
                                   const Text(
                                     'Welcome to PurePulse!',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF06b6d4),
                                     ),
                                   ),
                                   const SizedBox(height: 8),
@@ -138,20 +148,26 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 14,
-                                      color: Colors.grey.shade600,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ],
                               ),
 
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 32),
 
                               // Personal Use Option
                               Expanded(
                                 child: _EnhancedUserTypeCard(
                                   icon: Icons.person_outline,
                                   gradient: LinearGradient(
-                                    colors: [Colors.blue.shade400, Colors.blue.shade600],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      const Color(0xFF06b6d4),
+                                      const Color(0xFF0891b2),
+                                    ],
                                   ),
                                   title: 'Personal Use',
                                   description: 'Monitor air quality and get personalized alerts.',
@@ -173,7 +189,12 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
                                 child: _EnhancedUserTypeCard(
                                   icon: Icons.family_restroom_outlined,
                                   gradient: LinearGradient(
-                                    colors: [Colors.green.shade400, Colors.green.shade600],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      const Color(0xFF06b6d4),
+                                      const Color(0xFF0891b2),
+                                    ],
                                   ),
                                   title: 'Parental Control',
                                   description: 'Monitor air quality for children and manage profiles.',
@@ -197,7 +218,7 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
                   );
                 },
               ),
-              
+
               // Loading overlay
               if (_isLoading)
                 Container(
@@ -210,11 +231,18 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            CircularProgressIndicator(),
+                            CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF06b6d4),
+                              ),
+                            ),
                             SizedBox(height: 16),
                             Text(
                               'Setting up your profile...',
-                              style: TextStyle(fontSize: 16),
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF06b6d4),
+                              ),
                             ),
                           ],
                         ),
@@ -259,28 +287,19 @@ class _EnhancedUserTypeCard extends StatelessWidget {
       child: Card(
         elevation: isSelected ? 8 : 4,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: isSelected ? Colors.blue.shade300 : Colors.transparent,
+            color: isSelected ? const Color(0xFF06b6d4) : Colors.transparent,
             width: 2,
           ),
         ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: isSelected
-                  ? LinearGradient(
-                      colors: [
-                        Colors.blue.shade50,
-                        Colors.white,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : null,
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white,
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
@@ -292,10 +311,10 @@ class _EnhancedUserTypeCard extends StatelessWidget {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       gradient: gradient,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: gradient.colors.first.withOpacity(0.3),
+                          color: const Color(0xFF06b6d4).withAlpha(100),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -313,10 +332,10 @@ class _EnhancedUserTypeCard extends StatelessWidget {
                   // Title
                   Text(
                     title,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey.shade900,
                     ),
                   ),
 
@@ -331,8 +350,9 @@ class _EnhancedUserTypeCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade700,
+                        color: Colors.grey[600],
                         height: 1.3,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ),
@@ -343,8 +363,8 @@ class _EnhancedUserTypeCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(10),
+                      color: const Color(0xFFFAF5F0),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -372,7 +392,8 @@ class _EnhancedUserTypeCard extends StatelessWidget {
                                   feature,
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.grey.shade800,
+                                    color: Colors.grey[800],
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
@@ -390,7 +411,12 @@ class _EnhancedUserTypeCard extends StatelessWidget {
                     const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFF06b6d4),
+                        ),
+                      ),
                     )
                   else
                     Container(
@@ -400,11 +426,11 @@ class _EnhancedUserTypeCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         gradient: gradient,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(8),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
-                                  color: gradient.colors.first.withOpacity(0.4),
+                                  color: const Color(0xFF06b6d4).withAlpha(150),
                                   blurRadius: 6,
                                   offset: const Offset(0, 3),
                                 ),
@@ -418,7 +444,7 @@ class _EnhancedUserTypeCard extends StatelessWidget {
                             isSelected ? 'Selected' : 'Select',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
                           ),

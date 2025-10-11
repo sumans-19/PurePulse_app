@@ -83,7 +83,7 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
 
       Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
-      
+
       if (mounted) {
         setState(() {
           _selectedCity = null;
@@ -162,7 +162,13 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Color(0xFF06b6d4),
+            ),
+          ),
+        ),
       );
 
       await firestoreService.updateUser(user.uid, parentProfileData);
@@ -194,13 +200,13 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFFF0F9FA),
       appBar: AppBar(
         title: const Text("Location Setup"),
         centerTitle: false,
         elevation: 0,
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        foregroundColor: Colors.grey[900],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
@@ -216,9 +222,19 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Colors.blue.shade600, Colors.blue.shade700],
+                    colors: [
+                      const Color(0xFF06b6d4),
+                      const Color(0xFF0891b2),
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF06b6d4).withAlpha(100),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,10 +244,14 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withAlpha(100),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.location_on, color: Colors.white, size: 28),
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.white,
+                            size: 28,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         const Expanded(
@@ -243,7 +263,7 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                               SizedBox(height: 4),
@@ -262,7 +282,7 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
               // City Selection Card
               _buildCard(
@@ -271,13 +291,18 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.location_city, color: Colors.blue.shade700, size: 20),
+                        const Icon(
+                          Icons.location_city,
+                          color: Color(0xFF06b6d4),
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         const Text(
                           'Select City',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
+                            color: Color(0xFF212121),
                           ),
                         ),
                       ],
@@ -287,11 +312,35 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                       value: _selectedCity,
                       decoration: InputDecoration(
                         hintText: 'Choose your city',
-                        prefixIcon: const Icon(Icons.apartment),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                        prefixIcon: const Icon(
+                          Icons.apartment,
+                          color: Color(0xFF06b6d4),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Colors.grey[300]!,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Colors.grey[300]!,
+                          ),
+                        ),
+                        focusedBorder: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                          borderSide: BorderSide(
+                            color: Color(0xFF06b6d4),
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        fillColor: Colors.white,
+                        filled: true,
                       ),
                       items: _predefinedLocations.keys.map((String city) {
                         return DropdownMenuItem<String>(
@@ -316,19 +365,23 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
               // Divider
               Row(
                 children: [
-                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                  Expanded(
+                    child: Divider(color: Colors.grey[300]),
+                  ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
                       'OR',
                       style: TextStyle(
-                        color: Colors.grey.shade500,
+                        color: Colors.grey[500],
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
                     ),
                   ),
-                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                  Expanded(
+                    child: Divider(color: Colors.grey[300]),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
@@ -340,13 +393,18 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.my_location, color: Colors.blue.shade700, size: 20),
+                        const Icon(
+                          Icons.my_location,
+                          color: Color(0xFF06b6d4),
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         const Text(
                           'Use GPS Location',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
+                            color: Color(0xFF212121),
                           ),
                         ),
                       ],
@@ -355,7 +413,7 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                     Text(
                       'Get precise air quality data for your exact location',
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: Colors.grey[600],
                         fontSize: 13,
                       ),
                     ),
@@ -370,19 +428,26 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
                                 ),
                               )
                             : const Icon(Icons.gps_fixed),
                         label: Text(
-                          _isFetchingLocation ? 'Getting Location...' : 'Use Current Location',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                          _isFetchingLocation
+                              ? 'Getting Location...'
+                              : 'Use Current Location',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
+                          backgroundColor: const Color(0xFF06b6d4),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 0,
                         ),
@@ -404,7 +469,11 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle, color: Colors.green.shade700, size: 24),
+                      Icon(
+                        Icons.check_circle,
+                        color: Colors.green.shade700,
+                        size: 24,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -421,7 +490,7 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                             Text(
                               _locationController.text,
                               style: TextStyle(
-                                color: Colors.grey.shade700,
+                                color: Colors.grey[700],
                                 fontSize: 13,
                               ),
                             ),
@@ -440,18 +509,23 @@ class _ParentProfileSetupScreenState extends State<ParentProfileSetupScreen> {
                   onPressed: _saveAndProceed,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.blue.shade600,
+                    backgroundColor: const Color(0xFF06b6d4),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 0,
+                    elevation: 2,
+                    shadowColor: const Color(0xFF06b6d4).withAlpha(100),
                   ),
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         'Continue to Dashboard',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                       SizedBox(width: 8),
                       Icon(Icons.arrow_forward, size: 20),

@@ -90,7 +90,13 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Color(0xFF06b6d4),
+            ),
+          ),
+        ),
       );
 
       if (widget.childDoc != null) {
@@ -148,13 +154,13 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
             const SizedBox(height: 20),
             const Text(
               'Child Added Successfully!',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               'Would you like to add another child?',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -164,9 +170,9 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: Colors.grey.shade300),
+                      side: BorderSide(color: Colors.grey[300]!),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     onPressed: () {
@@ -181,9 +187,9 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.blue.shade600,
+                      backgroundColor: const Color(0xFF06b6d4),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     onPressed: () {
@@ -194,7 +200,10 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                                 const ParentProfileSetupScreen()),
                       );
                     },
-                    child: const Text('Finish Setup'),
+                    child: const Text(
+                      'Finish Setup',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ),
               ],
@@ -239,16 +248,31 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                 children: [
                   const Text(
                     "Add Activity",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 20),
                   TextFormField(
                     decoration: InputDecoration(
                       labelText: 'Activity Name',
                       hintText: 'e.g., Playground, Sports',
-                      prefixIcon: const Icon(Icons.sports_soccer),
+                      prefixIcon: const Icon(
+                        Icons.sports_soccer,
+                        color: Color(0xFF06b6d4),
+                      ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                        borderSide: BorderSide(
+                          color: Color(0xFF06b6d4),
+                          width: 2,
+                        ),
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
@@ -262,9 +286,24 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                     controller: startTimeController,
                     decoration: InputDecoration(
                       labelText: 'Start Time',
-                      prefixIcon: const Icon(Icons.access_time),
+                      prefixIcon: const Icon(
+                        Icons.access_time,
+                        color: Color(0xFF06b6d4),
+                      ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                        borderSide: BorderSide(
+                          color: Color(0xFF06b6d4),
+                          width: 2,
+                        ),
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
@@ -287,9 +326,24 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                     controller: endTimeController,
                     decoration: InputDecoration(
                       labelText: 'End Time',
-                      prefixIcon: const Icon(Icons.access_time_filled),
+                      prefixIcon: const Icon(
+                        Icons.access_time_filled,
+                        color: Color(0xFF06b6d4),
+                      ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                        borderSide: BorderSide(
+                          color: Color(0xFF06b6d4),
+                          width: 2,
+                        ),
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
@@ -315,9 +369,9 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                           onPressed: () => Navigator.of(context).pop(),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: BorderSide(color: Colors.grey.shade300),
+                            side: BorderSide(color: Colors.grey[300]!),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                           child: const Text('Cancel'),
@@ -341,12 +395,15 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                           },
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            backgroundColor: Colors.blue.shade600,
+                            backgroundColor: const Color(0xFF06b6d4),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: const Text('Add'),
+                          child: const Text(
+                            'Add',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ),
                     ],
@@ -378,13 +435,13 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFFF0F9FA),
       appBar: AppBar(
         title: const Text("Child's Profile"),
         centerTitle: false,
         elevation: 0,
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        foregroundColor: Colors.grey[900],
         automaticallyImplyLeading: !widget.isFirstChild,
       ),
       body: SingleChildScrollView(
@@ -405,9 +462,24 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                       decoration: InputDecoration(
                         labelText: "Child's Name",
                         hintText: 'Enter full name',
-                        prefixIcon: const Icon(Icons.child_care),
+                        prefixIcon: const Icon(
+                          Icons.child_care,
+                          color: Color(0xFF06b6d4),
+                        ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                          borderSide: BorderSide(
+                            color: Color(0xFF06b6d4),
+                            width: 2,
+                          ),
                         ),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
@@ -421,9 +493,24 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                       decoration: InputDecoration(
                         labelText: "Date of Birth",
                         hintText: 'Select date',
-                        prefixIcon: const Icon(Icons.calendar_today),
+                        prefixIcon: const Icon(
+                          Icons.calendar_today,
+                          color: Color(0xFF06b6d4),
+                        ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                          borderSide: BorderSide(
+                            color: Color(0xFF06b6d4),
+                            width: 2,
+                          ),
                         ),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
@@ -443,7 +530,7 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
               const SizedBox(height: 8),
               Text(
                 'Select any applicable conditions',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
               const SizedBox(height: 12),
               _buildCard(
@@ -467,11 +554,13 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                               }
                             });
                           },
-                          selectedColor: Colors.blue.shade50,
-                          checkmarkColor: Colors.blue.shade700,
+                          selectedColor: const Color(0xFFF0F9FA),
+                          checkmarkColor: const Color(0xFF06b6d4),
                           backgroundColor: Colors.white,
                           side: BorderSide(
-                            color: isSelected ? Colors.blue.shade600 : Colors.grey.shade300,
+                            color: isSelected
+                                ? const Color(0xFF06b6d4)
+                                : Colors.grey[300]!,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -484,9 +573,24 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                       controller: _conditionController,
                       decoration: InputDecoration(
                         hintText: 'Add custom condition',
-                        prefixIcon: const Icon(Icons.add_circle_outline),
+                        prefixIcon: const Icon(
+                          Icons.add_circle_outline,
+                          color: Color(0xFF06b6d4),
+                        ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                          borderSide: BorderSide(
+                            color: Color(0xFF06b6d4),
+                            width: 2,
+                          ),
                         ),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
@@ -500,7 +604,7 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                         'Selected:',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade700,
+                          color: Colors.grey[700],
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -516,7 +620,7 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                                 _selectedConditions.remove(condition);
                               });
                             },
-                            backgroundColor: Colors.blue.shade50,
+                            backgroundColor: const Color(0xFFF0F9FA),
                             side: BorderSide.none,
                           );
                         }).toList(),
@@ -532,7 +636,7 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
               const SizedBox(height: 8),
               Text(
                 'Track times when your child is outdoors',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
               const SizedBox(height: 12),
               _buildCard(
@@ -543,11 +647,12 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         child: Column(
                           children: [
-                            Icon(Icons.directions_run, size: 48, color: Colors.grey.shade300),
+                            Icon(Icons.directions_run,
+                                size: 48, color: Colors.grey[300]),
                             const SizedBox(height: 12),
                             Text(
                               'No activities added yet',
-                              style: TextStyle(color: Colors.grey.shade500),
+                              style: TextStyle(color: Colors.grey[500]),
                             ),
                           ],
                         ),
@@ -561,10 +666,12 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                         itemBuilder: (context, index) {
                           final activity = _activities[index];
                           return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 0, vertical: 8),
                             leading: CircleAvatar(
                               backgroundColor: Colors.green.shade50,
-                              child: Icon(Icons.sports_soccer, color: Colors.green.shade700, size: 20),
+                              child: Icon(Icons.sports_soccer,
+                                  color: Colors.green.shade700, size: 20),
                             ),
                             title: Text(
                               activity['name'],
@@ -572,10 +679,12 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                             ),
                             subtitle: Text(
                               '${activity['startTime']} - ${activity['endTime']}',
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                              style: TextStyle(
+                                  color: Colors.grey[600], fontSize: 13),
                             ),
                             trailing: IconButton(
-                              icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+                              icon: Icon(Icons.delete_outline,
+                                  color: Colors.red.shade400),
                               onPressed: () {
                                 setState(() {
                                   _activities.removeAt(index);
@@ -591,9 +700,9 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                       label: const Text('Add Activity'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(color: Colors.grey.shade300),
+                        side: BorderSide(color: Colors.grey[300]!),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       onPressed: _showAddActivityDialog,
@@ -610,15 +719,20 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
                   onPressed: _saveChildProfile,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.blue.shade600,
+                    backgroundColor: const Color(0xFF06b6d4),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 0,
+                    elevation: 2,
+                    shadowColor: const Color(0xFF06b6d4).withAlpha(100),
                   ),
                   child: Text(
                     widget.isFirstChild ? 'Save Child Profile' : 'Save Changes',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -632,13 +746,14 @@ class _AddChildProfileScreenState extends State<AddChildProfileScreen> {
   Widget _buildSectionTitle(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 24, color: Colors.blue.shade700),
+        Icon(icon, size: 24, color: const Color(0xFF06b6d4)),
         const SizedBox(width: 8),
         Text(
           title,
           style: const TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF212121),
           ),
         ),
       ],

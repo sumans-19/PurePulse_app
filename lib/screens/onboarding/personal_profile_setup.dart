@@ -121,7 +121,7 @@ class _PersonalProfileSetupScreenState
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Row(
             children: [
-              Icon(Icons.directions_walk, color: Colors.green),
+              Icon(Icons.directions_walk, color: Color(0xFF06b6d4)),
               SizedBox(width: 12),
               Text('Add Outdoor Activity'),
             ],
@@ -199,7 +199,7 @@ class _PersonalProfileSetupScreenState
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: const Color(0xFF06b6d4),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -234,8 +234,8 @@ class _PersonalProfileSetupScreenState
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Colors.indigo.shade600,
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF0891b2),
             ),
           ),
           child: child!,
@@ -330,19 +330,19 @@ class _PersonalProfileSetupScreenState
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.indigo.shade600,
+        backgroundColor: const Color(0xFF0891b2),
         title: Text(
           widget.profileData != null ? "Edit Profile" : "Complete Your Profile",
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.indigo.shade50, Colors.white],
+            colors: [Color(0xFFccfbf1), Colors.white],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: const [0.0, 0.3],
+            stops: [0.0, 0.3],
           ),
         ),
         child: SingleChildScrollView(
@@ -360,7 +360,7 @@ class _PersonalProfileSetupScreenState
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.indigo.shade100,
+                        color: const Color(0xFF06b6d4).withOpacity(0.15),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -368,8 +368,8 @@ class _PersonalProfileSetupScreenState
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.person_outline,
-                          size: 48, color: Colors.indigo.shade600),
+                      const Icon(Icons.person_outline,
+                          size: 48, color: Color(0xFF0891b2)),
                       const SizedBox(height: 12),
                       Text(
                         "Tell us about yourself",
@@ -393,7 +393,7 @@ class _PersonalProfileSetupScreenState
                 _SectionCard(
                   icon: Icons.cake,
                   title: 'Date of Birth',
-                  color: Colors.blue,
+                  color: const Color(0xFF06b6d4),
                   child: TextFormField(
                     controller: _dobController,
                     decoration: InputDecoration(
@@ -419,7 +419,7 @@ class _PersonalProfileSetupScreenState
                 _SectionCard(
                   icon: Icons.health_and_safety,
                   title: 'Health Conditions',
-                  color: Colors.pink,
+                  color: const Color(0xFF0e7490),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -440,8 +440,8 @@ class _PersonalProfileSetupScreenState
                           return FilterChip(
                             label: Text(condition),
                             selected: isSelected,
-                            selectedColor: Colors.pink.shade100,
-                            checkmarkColor: Colors.pink.shade700,
+                            selectedColor: const Color(0xFF06b6d4).withOpacity(0.2),
+                            checkmarkColor: const Color(0xFF0891b2),
                             onSelected: (bool selected) {
                               setState(() {
                                 if (selected) {
@@ -491,8 +491,8 @@ class _PersonalProfileSetupScreenState
                                   _selectedConditions.remove(condition);
                                 });
                               },
-                              backgroundColor: Colors.pink.shade50,
-                              side: BorderSide(color: Colors.pink.shade200),
+                              backgroundColor: const Color(0xFF06b6d4).withOpacity(0.1),
+                              side: const BorderSide(color: Color(0xFF06b6d4)),
                             );
                           }).toList(),
                         ),
@@ -507,7 +507,7 @@ class _PersonalProfileSetupScreenState
                 _SectionCard(
                   icon: Icons.directions_walk,
                   title: 'Outdoor Activities',
-                  color: Colors.green,
+                  color: const Color(0xFF06b6d4),
                   child: Column(
                     children: [
                       if (_activities.isEmpty)
@@ -534,15 +534,15 @@ class _PersonalProfileSetupScreenState
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
                               decoration: BoxDecoration(
-                                color: Colors.green.shade50,
+                                color: const Color(0xFF06b6d4).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.green.shade200),
+                                border: Border.all(color: const Color(0xFF06b6d4).withOpacity(0.3)),
                               ),
                               child: ListTile(
                                 leading: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Colors.green.shade600,
+                                    color: const Color(0xFF0891b2),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Icon(Icons.directions_walk,
@@ -554,7 +554,7 @@ class _PersonalProfileSetupScreenState
                                 ),
                                 subtitle: Text(
                                   '${activity['startTime']} - ${activity['endTime']}',
-                                  style: TextStyle(color: Colors.green.shade900),
+                                  style: const TextStyle(color: Color(0xFF0e7490)),
                                 ),
                                 trailing: IconButton(
                                   icon: const Icon(Icons.delete_outline,
@@ -576,8 +576,8 @@ class _PersonalProfileSetupScreenState
                           icon: const Icon(Icons.add),
                           label: const Text('Add Activity'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.green.shade700,
-                            side: BorderSide(color: Colors.green.shade300),
+                            foregroundColor: const Color(0xFF0891b2),
+                            side: const BorderSide(color: Color(0xFF06b6d4)),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -596,7 +596,7 @@ class _PersonalProfileSetupScreenState
                 _SectionCard(
                   icon: Icons.location_on,
                   title: 'Primary Location',
-                  color: Colors.orange,
+                  color: const Color(0xFF0891b2),
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
@@ -660,7 +660,7 @@ class _PersonalProfileSetupScreenState
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange.shade600,
+                            backgroundColor: const Color(0xFF0891b2),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
@@ -674,20 +674,20 @@ class _PersonalProfileSetupScreenState
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.orange.shade50,
+                            color: const Color(0xFF06b6d4).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.orange.shade200),
+                            border: Border.all(color: const Color(0xFF06b6d4).withOpacity(0.3)),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.check_circle,
-                                  color: Colors.orange.shade700, size: 20),
+                              const Icon(Icons.check_circle,
+                                  color: Color(0xFF0891b2), size: 20),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   _locationController.text,
-                                  style: TextStyle(
-                                    color: Colors.orange.shade900,
+                                  style: const TextStyle(
+                                    color: Color(0xFF0e7490),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -706,13 +706,13 @@ class _PersonalProfileSetupScreenState
                   width: double.infinity,
                   child: Container(
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.indigo.shade500, Colors.indigo.shade700],
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF06b6d4), Color(0xFF0891b2)],
                       ),
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.indigo.shade300.withOpacity(0.5),
+                          color: const Color(0xFF06b6d4).withOpacity(0.4),
                           blurRadius: 12,
                           offset: const Offset(0, 6),
                         ),

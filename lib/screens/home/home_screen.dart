@@ -19,13 +19,31 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _selectedIndex = 0;
+  late AnimationController _pulseController;
+  late AnimationController _slideController;
 
   @override
   void initState() {
     super.initState();
     _setupFCM();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _slideController.dispose();
+    super.dispose();
   }
 
   void _onItemTapped(int index) {
@@ -79,8 +97,49 @@ class _HomeScreenState extends State<HomeScreen> {
       future: _loadData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ScaleTransition(
+                        scale: Tween<double>(begin: 1.0, end: 1.3).animate(
+                          CurvedAnimation(
+                            parent: _pulseController,
+                            curve: Curves.easeInOut,
+                          ),
+                        ),
+                        child: Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF06b6d4).withOpacity(0.2),
+                          ),
+                        ),
+                      ),
+                      const CircularProgressIndicator(
+                        color: Color(0xFF06b6d4),
+                        strokeWidth: 3,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Loading air quality data...',
+                    style: TextStyle(
+                      color: Color(0xFF0e7490),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
         if (snapshot.hasError) {
           return Scaffold(
@@ -107,11 +166,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(_selectedIndex == 0
-                ? 'Dashboard'
-                : _selectedIndex == 1
-                    ? 'Notifications'
-                    : 'Profile'),
+            elevation: 0,
+            backgroundColor: const Color(0xFF0891b2),
+            title: Text(
+              _selectedIndex == 0
+                  ? 'Dashboard'
+                  : _selectedIndex == 1
+                      ? 'Notifications'
+                      : 'Profile',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             automaticallyImplyLeading: false,
             actions: [
               if (_selectedIndex == 1)
@@ -123,6 +187,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       context: context,
                       builder: (BuildContext dialogContext) {
                         return AlertDialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                           title: const Text('Clear History?'),
                           content: const Text(
                             'Are you sure you want to delete all notifications? This cannot be undone.',
@@ -135,6 +202,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                               ),
                               child: const Text('Clear All'),
                               onPressed: () {
@@ -181,6 +251,8 @@ class _HomeScreenState extends State<HomeScreen> {
             children: pages,
           ),
           bottomNavigationBar: BottomNavigationBar(
+            selectedItemColor: const Color(0xFF0891b2),
+            unselectedItemColor: Colors.grey,
             items: const <BottomNavigationBarItem>[
               BottomNavigationBarItem(
                   icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
@@ -194,7 +266,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: _onItemTapped,
           ),
           floatingActionButton: (_selectedIndex == 0 && userType == 'parent')
-              ? FloatingActionButton(
+              ? FloatingActionButton.extended(
+                  backgroundColor: const Color(0xFF06b6d4),
                   onPressed: () async {
                     await Navigator.of(context).push(
                       MaterialPageRoute(
@@ -204,8 +277,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                     setState(() {});
                   },
-                  child: const Icon(Icons.add),
-                  tooltip: 'Add Child',
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  label: const Text('Add Child', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 )
               : null,
         );
@@ -239,29 +312,20 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Hello, ${user['name']}!',
-              style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.location_on, size: 14, color: Colors.grey),
-              const SizedBox(width: 4),
-              Text(
-                stationName,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-            ],
-          ),
+          _buildHeaderSection(user['name'], stationName),
+          const SizedBox(height: 24),
+          _AqiDisplayCard(aqiData: aqi, pulseController: _pulseController),
           const SizedBox(height: 20),
-          _AqiDisplayCard(aqiData: aqi),
-          const SizedBox(height: 16),
           _HealthRiskCard(user: user, aqi: aqiValue),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
+          _QuickStatsRow(aqiData: aqi),
+          const SizedBox(height: 20),
           _PollutantsGrid(aqiData: aqi),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _WeatherInfoCard(aqiData: aqi),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _LastUpdatedCard(aqiData: aqi),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -282,32 +346,34 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Hello, ${user['name']}!',
-                    style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 4),
-                _AqiDisplayCard(aqiData: aqi),
-                const SizedBox(height: 8),
-                Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.location_on,
-                          size: 12, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Text(
-                        stationName,
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
+                _buildHeaderSection(user['name'], stationName),
+                const SizedBox(height: 24),
+                _AqiDisplayCard(aqiData: aqi, pulseController: _pulseController),
+                const SizedBox(height: 20),
+                _QuickStatsRow(aqiData: aqi),
+                const SizedBox(height: 20),
                 _PollutantsGrid(aqiData: aqi),
                 const SizedBox(height: 24),
-                const Text(
-                  "Your Children's Profiles",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF06b6d4).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.family_restroom, color: Color(0xFF0891b2), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      "Your Children's Profiles",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0e7490),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
               ],
@@ -324,69 +390,382 @@ class _HomeScreenState extends State<HomeScreen> {
               if (risk == 'High Risk') riskColor = Colors.red;
               if (risk == 'Moderate Risk') riskColor = Colors.orange;
 
-              return Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-                child: Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(12),
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: riskColor.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.child_care, color: riskColor, size: 24),
-                    ),
-                    title: Text(
-                      child['name'],
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        (child['healthConditions'] as List?)?.join(', ') ??
-                            'No conditions listed',
-                        style: TextStyle(
-                            fontSize: 13, color: Colors.grey.shade700),
-                      ),
-                    ),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: riskColor,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        risk,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              return _ChildProfileCard(
+                child: child,
+                risk: risk,
+                riskColor: riskColor,
+                index: index,
               );
             },
             childCount: children.length,
           ),
         ),
-        const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
+        const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
       ],
+    );
+  }
+
+  Widget _buildHeaderSection(String name, String location) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF0891b2).withOpacity(0.1),
+            const Color(0xFF06b6d4).withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF06b6d4).withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF06b6d4).withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.wb_sunny_outlined, color: Color(0xFF0891b2), size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hello, $name!',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0e7490),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 14, color: Color(0xFF0891b2)),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        location,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF0891b2),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickStatsRow extends StatelessWidget {
+  final Map<String, dynamic> aqiData;
+  const _QuickStatsRow({required this.aqiData});
+
+  @override
+  Widget build(BuildContext context) {
+    final iaqi = aqiData['iaqi'] as Map<String, dynamic>?;
+    if (iaqi == null) return const SizedBox.shrink();
+
+    final pm25 = iaqi['pm25']?['v'];
+    final temp = iaqi['t']?['v'];
+    final humidity = iaqi['h']?['v'];
+
+    return Row(
+      children: [
+        if (pm25 != null)
+          Expanded(
+            child: _QuickStatCard(
+              icon: Icons.blur_on,
+              label: 'PM2.5',
+              value: '$pm25',
+              unit: 'μg/m³',
+            ),
+          ),
+        if (pm25 != null && temp != null) const SizedBox(width: 12),
+        if (temp != null)
+          Expanded(
+            child: _QuickStatCard(
+              icon: Icons.thermostat,
+              label: 'Temp',
+              value: '$temp',
+              unit: '°C',
+            ),
+          ),
+        if ((pm25 != null || temp != null) && humidity != null) const SizedBox(width: 12),
+        if (humidity != null)
+          Expanded(
+            child: _QuickStatCard(
+              icon: Icons.water_drop,
+              label: 'Humidity',
+              value: '$humidity',
+              unit: '%',
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _QuickStatCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final String unit;
+
+  const _QuickStatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.unit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF06b6d4).withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF06b6d4).withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: const Color(0xFF0891b2), size: 24),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0e7490),
+                ),
+              ),
+              const SizedBox(width: 2),
+              Text(
+                unit,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChildProfileCard extends StatefulWidget {
+  final Map<String, dynamic> child;
+  final String risk;
+  final Color riskColor;
+  final int index;
+
+  const _ChildProfileCard({
+    required this.child,
+    required this.risk,
+    required this.riskColor,
+    required this.index,
+  });
+
+  @override
+  State<_ChildProfileCard> createState() => _ChildProfileCardState();
+}
+
+class _ChildProfileCardState extends State<_ChildProfileCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: Duration(milliseconds: 300 + (widget.index * 100)),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _animation,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.3, 0),
+          end: Offset.zero,
+        ).animate(_animation),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: widget.riskColor.withOpacity(0.3), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.riskColor.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Stack(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              widget.riskColor.withOpacity(0.2),
+                              widget.riskColor.withOpacity(0.1),
+                            ],
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.child_care, color: widget.riskColor, size: 30),
+                      ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: widget.riskColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(Icons.favorite, color: Colors.white, size: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.child['name'],
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                            color: Color(0xFF0e7490),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF06b6d4).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            (widget.child['healthConditions'] as List?)?.join(', ') ??
+                                'No conditions',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF0891b2),
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: widget.riskColor,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: widget.riskColor.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          widget.risk,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _AqiDisplayCard extends StatelessWidget {
   final Map<String, dynamic> aqiData;
-  const _AqiDisplayCard({super.key, required this.aqiData});
+  final AnimationController pulseController;
+  
+  const _AqiDisplayCard({
+    required this.aqiData,
+    required this.pulseController,
+  });
 
   Color _getAqiColor(int aqi) {
     if (aqi > 200) return Colors.purple;
@@ -404,6 +783,16 @@ class _AqiDisplayCard extends StatelessWidget {
     return 'Good';
   }
 
+  IconData _getAqiIcon(int aqi) {
+    if (aqi > 200) return Icons.dangerous;
+    if (aqi > 150) return Icons.warning_amber;
+    if (aqi > 100) return Icons.error_outline;
+    if (aqi > 50) return Icons.info_outline;
+    return Icons.check_circle_outline;
+  }
+
+  
+
   @override
   Widget build(BuildContext context) {
     final aqiValue = aqiData['aqi'];
@@ -411,49 +800,170 @@ class _AqiDisplayCard extends StatelessWidget {
         (aqiValue is int) ? aqiValue : int.tryParse(aqiValue.toString()) ?? 0;
     final color = _getAqiColor(finalAqi);
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [color.withOpacity(0.15), color.withOpacity(0.05)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3), width: 2),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            const Text('Live Air Quality Index',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            const SizedBox(height: 16),
-            Text(finalAqi.toString(),
-                style: TextStyle(
-                    fontSize: 56, color: color, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(_getAqiText(finalAqi),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16)),
+    return Stack(
+      children: [
+        ScaleTransition(
+          scale: Tween<double>(begin: 1.0, end: 1.05).animate(
+            CurvedAnimation(
+              parent: pulseController,
+              curve: Curves.easeInOut,
             ),
-          ],
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color.withOpacity(0.2), color.withOpacity(0.05)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: color.withOpacity(0.4), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(_getAqiIcon(finalAqi), color: color, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Live Air Quality',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: Color(0xFF0e7490),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'LIVE',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0e7490),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 160,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: color.withOpacity(0.3), width: 8),
+                          gradient: RadialGradient(
+                            colors: [
+                              color.withOpacity(0.1),
+                              color.withOpacity(0.05),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            finalAqi.toString(),
+                            style: TextStyle(
+                              fontSize: 72,
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                              height: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'AQI',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF0891b2),
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      _getAqiText(finalAqi),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }
 
 class _PollutantsGrid extends StatelessWidget {
   final Map<String, dynamic> aqiData;
-  const _PollutantsGrid({super.key, required this.aqiData});
+  const _PollutantsGrid({required this.aqiData});
 
   @override
   Widget build(BuildContext context) {
@@ -464,12 +974,7 @@ class _PollutantsGrid extends StatelessWidget {
       {'key': 'pm25', 'name': 'PM2.5', 'icon': Icons.blur_on, 'unit': 'μg/m³'},
       {'key': 'pm10', 'name': 'PM10', 'icon': Icons.grain, 'unit': 'μg/m³'},
       {'key': 'o3', 'name': 'Ozone', 'icon': Icons.cloud, 'unit': 'ppb'},
-      {
-        'key': 'no2',
-        'name': 'NO₂',
-        'icon': Icons.local_shipping,
-        'unit': 'ppb'
-      },
+      {'key': 'no2', 'name': 'NO₂', 'icon': Icons.local_shipping, 'unit': 'ppb'},
       {'key': 'so2', 'name': 'SO₂', 'icon': Icons.factory, 'unit': 'ppb'},
       {'key': 'co', 'name': 'CO', 'icon': Icons.smoke_free, 'unit': 'ppm'},
     ];
@@ -477,15 +982,34 @@ class _PollutantsGrid extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Pollutant Levels',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF06b6d4).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.analytics_outlined, color: Color(0xFF0891b2), size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Pollutant Levels',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0e7490),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            childAspectRatio: 1.5,
+            childAspectRatio: 1.35,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
@@ -501,6 +1025,7 @@ class _PollutantsGrid extends StatelessWidget {
               value: value.toString(),
               unit: pollutant['unit'] as String,
               icon: pollutant['icon'] as IconData,
+              index: index,
             );
           },
         ),
@@ -509,55 +1034,165 @@ class _PollutantsGrid extends StatelessWidget {
   }
 }
 
-class _PollutantCard extends StatelessWidget {
+class _PollutantCard extends StatefulWidget {
   final String name;
   final String value;
   final String unit;
   final IconData icon;
+  final int index;
 
   const _PollutantCard({
-    super.key,
     required this.name,
     required this.value,
     required this.unit,
     required this.icon,
+    required this.index,
   });
 
   @override
+  State<_PollutantCard> createState() => _PollutantCardState();
+}
+
+class _PollutantCardState extends State<_PollutantCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: Colors.blue.shade700),
-              const SizedBox(width: 8),
-              Text(name,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 14)),
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => _isPressed = true);
+        _controller.forward();
+      },
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+      },
+      onTapCancel: () {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+      },
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _isPressed
+                  ? const Color(0xFF06b6d4).withOpacity(0.5)
+                  : const Color(0xFF06b6d4).withOpacity(0.2),
+              width: _isPressed ? 2 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF06b6d4).withOpacity(_isPressed ? 0.15 : 0.08),
+                blurRadius: _isPressed ? 12 : 8,
+                offset: Offset(0, _isPressed ? 6 : 2),
+              ),
             ],
           ),
-          Column(
+          padding: const EdgeInsets.all(16),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(value,
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade900)),
-              Text(unit,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF0891b2).withOpacity(0.15),
+                          const Color(0xFF06b6d4).withOpacity(0.1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(widget.icon, size: 20, color: const Color(0xFF0891b2)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF06b6d4).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      widget.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: Color(0xFF0891b2),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        widget.value,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0e7490),
+                          height: 1.0,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.unit,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    height: 3,
+                    width: 40,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0891b2), Color(0xFF06b6d4)],
+                      ),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -565,7 +1200,7 @@ class _PollutantCard extends StatelessWidget {
 
 class _WeatherInfoCard extends StatelessWidget {
   final Map<String, dynamic> aqiData;
-  const _WeatherInfoCard({super.key, required this.aqiData});
+  const _WeatherInfoCard({required this.aqiData});
 
   @override
   Widget build(BuildContext context) {
@@ -584,41 +1219,113 @@ class _WeatherInfoCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Weather Conditions',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF06b6d4).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.wb_cloudy_outlined, color: Color(0xFF0891b2), size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Weather Conditions',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0e7490),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
-        Card(
-          elevation: 2,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF06b6d4).withOpacity(0.05),
+                const Color(0xFF0891b2).withOpacity(0.02),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF06b6d4).withOpacity(0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF06b6d4).withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 if (temp != null)
-                  _WeatherItem(
+                  Expanded(
+                    child: _WeatherItem(
                       icon: Icons.thermostat,
-                      label: 'Temp',
-                      value: '${temp}°C'),
-                if (humidity != null)
-                  _WeatherItem(
+                      label: 'Temperature',
+                      value: '$temp°C',
+                    ),
+                  ),
+                if (humidity != null) ...[
+                  if (temp != null) _VerticalDivider(),
+                  Expanded(
+                    child: _WeatherItem(
                       icon: Icons.water_drop,
                       label: 'Humidity',
-                      value: '$humidity%'),
-                if (pressure != null)
-                  _WeatherItem(
+                      value: '$humidity%',
+                    ),
+                  ),
+                ],
+                if (pressure != null) ...[
+                  if (temp != null || humidity != null) _VerticalDivider(),
+                  Expanded(
+                    child: _WeatherItem(
                       icon: Icons.speed,
                       label: 'Pressure',
-                      value: '$pressure hPa'),
-                if (wind != null)
-                  _WeatherItem(
-                      icon: Icons.air, label: 'Wind', value: '$wind m/s'),
+                      value: '$pressure hPa',
+                    ),
+                  ),
+                ],
+                if (wind != null) ...[
+                  if (temp != null || humidity != null || pressure != null) _VerticalDivider(),
+                  Expanded(
+                    child: _WeatherItem(
+                      icon: Icons.air,
+                      label: 'Wind Speed',
+                      value: '$wind m/s',
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _VerticalDivider() {
+    return Container(
+      width: 1,
+      height: 50,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF06b6d4).withOpacity(0),
+            const Color(0xFF06b6d4).withOpacity(0.3),
+            const Color(0xFF06b6d4).withOpacity(0),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
     );
   }
 }
@@ -629,7 +1336,6 @@ class _WeatherItem extends StatelessWidget {
   final String value;
 
   const _WeatherItem({
-    super.key,
     required this.icon,
     required this.label,
     required this.value,
@@ -639,13 +1345,39 @@ class _WeatherItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: Colors.blue.shade700),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF0891b2).withOpacity(0.15),
+                const Color(0xFF06b6d4).withOpacity(0.1),
+              ],
+            ),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: const Color(0xFF0891b2), size: 24),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
         const SizedBox(height: 4),
-        Text(label,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-        const SizedBox(height: 2),
-        Text(value,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        Text(
+          value,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+            color: Color(0xFF0e7490),
+          ),
+        ),
       ],
     );
   }
@@ -653,7 +1385,7 @@ class _WeatherItem extends StatelessWidget {
 
 class _LastUpdatedCard extends StatelessWidget {
   final Map<String, dynamic> aqiData;
-  const _LastUpdatedCard({super.key, required this.aqiData});
+  const _LastUpdatedCard({required this.aqiData});
 
   @override
   Widget build(BuildContext context) {
@@ -662,18 +1394,63 @@ class _LastUpdatedCard extends StatelessWidget {
 
     final timestamp = time['s'] ?? 'Unknown';
 
-    return Card(
-      elevation: 1,
-      color: Colors.blue.shade50,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF06b6d4).withOpacity(0.1),
+            const Color(0xFF0891b2).withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF06b6d4).withOpacity(0.3)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            Icon(Icons.update, size: 18, color: Colors.blue.shade700),
-            const SizedBox(width: 8),
-            Text('Last updated: $timestamp',
-                style: TextStyle(fontSize: 12, color: Colors.blue.shade900)),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF06b6d4).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.update, size: 20, color: Color(0xFF0891b2)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Last Updated',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF0891b2),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    timestamp,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF0e7490),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check, size: 16, color: Colors.green),
+            ),
           ],
         ),
       ),
@@ -685,7 +1462,7 @@ class _HealthRiskCard extends StatelessWidget {
   final Map<String, dynamic> user;
   final int aqi;
 
-  const _HealthRiskCard({super.key, required this.user, required this.aqi});
+  const _HealthRiskCard({required this.user, required this.aqi});
 
   String _calculateRisk(List<dynamic> conditions, int aqiValue) {
     bool isSensitive = conditions.any((c) =>
@@ -699,6 +1476,12 @@ class _HealthRiskCard extends StatelessWidget {
       if (aqiValue > 100) return 'Moderate Risk';
       return 'Low Risk';
     }
+  }
+
+  String _getRiskAdvice(String risk) {
+    if (risk == 'High Risk') return 'Avoid outdoor activities';
+    if (risk == 'Moderate Risk') return 'Limit outdoor exposure';
+    return 'Safe for outdoor activities';
   }
 
   @override
@@ -722,44 +1505,116 @@ class _HealthRiskCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: riskColor.withOpacity(0.3), width: 2),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: riskColor.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(riskIcon, color: riskColor, size: 28),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: riskColor.withOpacity(0.4), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: riskColor.withOpacity(0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      riskColor.withOpacity(0.3),
+                      riskColor.withOpacity(0.2),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: riskColor.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(riskIcon, color: riskColor, size: 32),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Your Personalized Risk',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                        color: Color(0xFF0e7490),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Based on current AQI & health profile',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                decoration: BoxDecoration(
+                  color: riskColor,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: riskColor.withOpacity(0.4),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  risk,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: riskColor.withOpacity(0.2)),
+            ),
+            child: Row(
               children: [
-                const Text('Your Personalized Risk',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text('Based on current AQI & your health data',
-                    style:
-                        TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                Icon(Icons.lightbulb_outline, color: riskColor, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _getRiskAdvice(risk),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade800,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: riskColor,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(risk,
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

@@ -29,22 +29,34 @@ class ProfileScreen extends StatelessWidget {
       children: [
         // User Info Card - Clean and Simple
         Card(
-          elevation: 1,
+          elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.grey.shade200),
+            side: BorderSide(color: const Color(0xFF06b6d4).withOpacity(0.2)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.blue.shade50,
-                  child: Icon(
-                    userType == 'parent' ? Icons.family_restroom : Icons.person,
-                    size: 50,
-                    color: Colors.blue.shade700,
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF06b6d4).withOpacity(0.2),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: const Color(0xFF06b6d4).withOpacity(0.1),
+                    child: Icon(
+                      userType == 'parent' ? Icons.family_restroom : Icons.person,
+                      size: 50,
+                      color: const Color(0xFF0891b2),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -53,6 +65,7 @@ class ProfileScreen extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
+                    color: Color(0xFF0e7490),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -67,15 +80,15 @@ class ProfileScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: const Color(0xFF06b6d4).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     userType == 'parent' ? 'Parent Account' : 'Personal Account',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.blue.shade700,
+                      color: Color(0xFF0891b2),
                     ),
                   ),
                 ),
@@ -93,10 +106,11 @@ class ProfileScreen extends StatelessWidget {
             _EmptyState(message: 'No health conditions listed')
           else
             Card(
-              elevation: 0,
-              color: Colors.grey.shade50,
+              elevation: 1,
+              color: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: const Color(0xFF06b6d4).withOpacity(0.2)),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -106,9 +120,12 @@ class ProfileScreen extends StatelessWidget {
                   children: healthConditions.map((condition) {
                     return Chip(
                       label: Text(condition.toString()),
-                      backgroundColor: Colors.white,
-                      side: BorderSide(color: Colors.grey.shade300),
-                      labelStyle: const TextStyle(fontSize: 13),
+                      backgroundColor: const Color(0xFF06b6d4).withOpacity(0.1),
+                      side: const BorderSide(color: Color(0xFF06b6d4)),
+                      labelStyle: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF0e7490),
+                      ),
                     );
                   }).toList(),
                 ),
@@ -123,20 +140,28 @@ class ProfileScreen extends StatelessWidget {
           else
             ...activities.map((activity) {
               return Card(
-                elevation: 0,
+                elevation: 1,
                 margin: const EdgeInsets.only(bottom: 8),
-                color: Colors.grey.shade50,
+                color: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: const Color(0xFF06b6d4).withOpacity(0.2)),
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
                   ),
-                  leading: Icon(
-                    Icons.directions_walk,
-                    color: Colors.blue.shade700,
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF06b6d4).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.directions_walk,
+                      color: Color(0xFF0891b2),
+                    ),
                   ),
                   title: Text(
                     activity['name'] ?? 'Unnamed Activity',
@@ -170,19 +195,24 @@ class ProfileScreen extends StatelessWidget {
               final childConditions = childData['healthConditions'] as List? ?? [];
 
               return Card(
-                elevation: 0,
+                elevation: 1,
                 margin: const EdgeInsets.only(bottom: 12),
-                color: Colors.grey.shade50,
+                color: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: const Color(0xFF06b6d4).withOpacity(0.2)),
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(16),
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.blue.shade100,
-                    child: Icon(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF06b6d4).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
                       Icons.child_care,
-                      color: Colors.blue.shade700,
+                      color: Color(0xFF0891b2),
                     ),
                   ),
                   title: Text(
@@ -205,7 +235,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   trailing: IconButton(
-                    icon: Icon(Icons.edit, color: Colors.grey.shade600),
+                    icon: Icon(Icons.edit, color: const Color(0xFF0891b2)),
                     onPressed: () {
                       Navigator.of(context)
                           .push(MaterialPageRoute(
@@ -300,7 +330,7 @@ class _SectionTitle extends StatelessWidget {
       style: const TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
-        color: Colors.black87,
+        color: Color(0xFF0e7490),
       ),
     );
   }
@@ -314,10 +344,11 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 0,
-      color: Colors.grey.shade50,
+      elevation: 1,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: const Color(0xFF06b6d4).withOpacity(0.2)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),

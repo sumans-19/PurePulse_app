@@ -65,7 +65,11 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF06b6d4),
+                  ),
+                );
               }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return _buildEmptyState();
@@ -126,13 +130,13 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: const Color(0xFF06b6d4).withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.notifications_off_outlined,
               size: 64,
-              color: Colors.blue.shade300,
+              color: const Color(0xFF06b6d4).withOpacity(0.6),
             ),
           ),
           const SizedBox(height: 24),
@@ -143,7 +147,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: Color(0xFF0e7490),
             ),
           ),
           const SizedBox(height: 8),
@@ -180,8 +184,8 @@ class _FilterChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
           gradient: isSelected
-              ? LinearGradient(
-                  colors: [Colors.blue.shade400, Colors.blue.shade600],
+              ? const LinearGradient(
+                  colors: [Color(0xFF06b6d4), Color(0xFF0891b2)],
                 )
               : null,
           color: isSelected ? null : Colors.grey.shade200,
@@ -189,7 +193,7 @@ class _FilterChip extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.blue.shade300.withOpacity(0.4),
+                    color: const Color(0xFF06b6d4).withOpacity(0.4),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -244,7 +248,7 @@ class _NotificationCardState extends State<_NotificationCard> {
       if (aqiValue > 50) return Colors.yellow.shade700;
     }
     
-    return Colors.blue;
+    return const Color(0xFF06b6d4);
   }
 
   IconData _getNotificationIcon() {
@@ -290,8 +294,10 @@ class _NotificationCardState extends State<_NotificationCard> {
           SnackBar(
             content: const Text('Notification deleted'),
             behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF0891b2),
             action: SnackBarAction(
               label: 'UNDO',
+              textColor: Colors.white,
               onPressed: () {
                 // Note: Implementing undo would require storing deleted notifications temporarily
               },
