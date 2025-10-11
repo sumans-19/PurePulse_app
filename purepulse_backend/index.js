@@ -69,6 +69,7 @@ const checkAqiAndSendAlerts = async () => {
         
         const now = new Date();
 
+
         // 2. Save current AQI to history
         const historyRef = db.collection('users').doc(user.uid).collection('aqi_history');
         await historyRef.add({ aqi: currentAqi, timestamp: now });

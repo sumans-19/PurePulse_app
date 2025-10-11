@@ -53,6 +53,8 @@ class _SignupScreenState extends State<SignupScreen> {
         SnackBar(
           content: Text(authService.errorMessage ?? 'Signup failed'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       );
     }
@@ -60,27 +62,91 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Account'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        centerTitle: true,
+        title: Text(
+          'Create Account',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 24),
-                
-                // Name field
+                // Subtitle
+                Text(
+                  'Join PurePlus today',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // Name Field
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Full Name',
-                    prefixIcon: Icon(Icons.person_outline),
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.person_outline,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    filled: true,
+                    fillColor: isDark
+                        ? Colors.grey[800]
+                        : Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.grey[300]!,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.grey[300]!,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.red,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -90,15 +156,54 @@ class _SignupScreenState extends State<SignupScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
-                // Email field
+
+                // Email Field
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'Email Address',
+                    labelStyle: TextStyle(
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.email_outlined,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    filled: true,
+                    fillColor: isDark
+                        ? Colors.grey[800]
+                        : Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.grey[300]!,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.grey[300]!,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.red,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -111,26 +216,66 @@ class _SignupScreenState extends State<SignupScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
-                // Password field
+
+                // Password Field
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: const OutlineInputBorder(),
+                    labelStyle: TextStyle(
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    filled: true,
+                    fillColor: isDark
+                        ? Colors.grey[800]
+                        : Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.grey[300]!,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.grey[300]!,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.red,
+                      ),
+                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
+                        color: Theme.of(context).primaryColor,
                       ),
                       onPressed: () {
                         setState(() {
                           _obscurePassword = !_obscurePassword;
                         });
                       },
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
                     ),
                   ),
                   validator: (value) {
@@ -144,26 +289,66 @@ class _SignupScreenState extends State<SignupScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
-                // Confirm Password field
+
+                // Confirm Password Field
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirmPassword,
                   decoration: InputDecoration(
                     labelText: 'Confirm Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: const OutlineInputBorder(),
+                    labelStyle: TextStyle(
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    filled: true,
+                    fillColor: isDark
+                        ? Colors.grey[800]
+                        : Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.grey[300]!,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.grey[300]!,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.red,
+                      ),
+                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureConfirmPassword
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
+                        color: Theme.of(context).primaryColor,
                       ),
                       onPressed: () {
                         setState(() {
                           _obscureConfirmPassword = !_obscureConfirmPassword;
                         });
                       },
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
                     ),
                   ),
                   validator: (value) {
@@ -174,31 +359,80 @@ class _SignupScreenState extends State<SignupScreen> {
                   },
                 ),
                 const SizedBox(height: 32),
-                
-                // Sign up button
+
+                // Sign Up Button
                 Consumer<AuthService>(
                   builder: (context, authService, _) {
                     return ElevatedButton(
                       onPressed: authService.isLoading ? null : _signup,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Theme.of(context).primaryColor,
+                        disabledBackgroundColor: Colors.grey[400],
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        elevation: 2,
                       ),
                       child: authService.isLoading
                           ? const SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
-                                strokeWidth: 2,
+                                strokeWidth: 2.5,
                                 valueColor:
                                     AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
-                          : const Text('Sign Up', style: TextStyle(fontSize: 16)),
+                          : Text(
+                              'Create Account',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                                color: Colors.white,
+                              ),
+                            ),
                     );
                   },
+                ),
+                const SizedBox(height: 20),
+
+                // Terms Text
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        children: [
+                          const TextSpan(text: 'By signing up, you agree to our '),
+                          TextSpan(
+                            text: 'Terms of Service',
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          const TextSpan(text: ' and '),
+                          TextSpan(
+                            text: 'Privacy Policy',
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
