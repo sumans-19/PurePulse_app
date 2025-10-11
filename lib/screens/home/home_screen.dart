@@ -32,7 +32,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<Map<String, dynamic>> _loadData() async {
-    // This function is now only called by the FutureBuilder
     final firestoreService = context.read<FirestoreService>();
     final aqiService = context.read<AqiService>();
     final user = FirebaseAuth.instance.currentUser!;
@@ -45,8 +44,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     final aqiData = await aqiService.getAqiData(
         userData['primaryLocation']['latitude'], userData['primaryLocation']['longitude']);
-    
-    print('RAW AQI DATA FROM API: $aqiData');
 
     if (userData['userType'] == 'parent') {
       final childrenSnapshot = await firestoreService.getChildren(user.uid);
@@ -74,12 +71,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // This is the new, cleaner structure.
-    // The FutureBuilder is at the top level.
     return FutureBuilder<Map<String, dynamic>>(
       future: _loadData(),
       builder: (context, snapshot) {
-        // Handle loading and error states first
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
@@ -90,7 +84,6 @@ class _HomeScreenState extends State<HomeScreen> {
           return const Scaffold(body: Center(child: Text('No data found.')));
         }
 
-        // Once data is loaded, build the real UI
         final data = snapshot.data!;
         final userType = data['user']['userType'];
 
@@ -139,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         builder: (context) => const AddChildProfileScreen(isFirstChild: false),
                       ),
                     );
-                    setState(() {}); // Rebuild to refresh the dashboard future
+                    setState(() {});
                   },
                   child: const Icon(Icons.add),
                   tooltip: 'Add Child',
@@ -167,16 +160,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildPersonalDashboard(Map<String, dynamic> user, Map<String, dynamic> aqi) {
     final int aqiValue = (aqi['aqi'] is int) ? aqi['aqi'] : int.tryParse(aqi['aqi'].toString()) ?? 0;
-    return Padding(
+    final String stationName = aqi['city']?['name'] ?? 'Unknown Station';
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Hello, ${user['name']}!', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 24),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.location_on, size: 14, color: Colors.grey),
+              const SizedBox(width: 4),
+              Text(
+                stationName,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
           _AqiDisplayCard(aqiData: aqi),
           const SizedBox(height: 16),
           _HealthRiskCard(user: user, aqi: aqiValue),
+          const SizedBox(height: 16),
+          _PollutantsGrid(aqiData: aqi),
+          const SizedBox(height: 16),
+          _WeatherInfoCard(aqiData: aqi),
+          const SizedBox(height: 16),
+          _LastUpdatedCard(aqiData: aqi),
         ],
       ),
     );
@@ -184,15 +196,40 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildParentDashboard(Map<String, dynamic> user, Map<String, dynamic> aqi, List<DocumentSnapshot> children) {
     final int aqiValue = (aqi['aqi'] is int) ? aqi['aqi'] : int.tryParse(aqi['aqi'].toString()) ?? 0;
+    final String stationName = aqi['city']?['name'] ?? 'Unknown Station';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: _AqiDisplayCard(aqiData: aqi),
+        SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _AqiDisplayCard(aqiData: aqi),
+                const SizedBox(height: 8),
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on, size: 12, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text(
+                        stationName,
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _PollutantsGrid(aqiData: aqi),
+              ],
+            ),
+          ),
         ),
         const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          padding: EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
           child: Text("Your Children's Profiles", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ),
         Expanded(
@@ -251,17 +288,243 @@ class _AqiDisplayCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final aqiValue = aqiData['aqi'];
     final int finalAqi = (aqiValue is int) ? aqiValue : int.tryParse(aqiValue.toString()) ?? 0;
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    final color = _getAqiColor(finalAqi);
+    
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color.withOpacity(0.15), color.withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.3), width: 2),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            const Text('Live Air Quality Index', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 12),
-            Text(finalAqi.toString(), style: TextStyle(fontSize: 48, color: _getAqiColor(finalAqi), fontWeight: FontWeight.bold)),
-            Text(_getAqiText(finalAqi), style: TextStyle(color: _getAqiColor(finalAqi), fontWeight: FontWeight.bold, fontSize: 18)),
+            const Text('Live Air Quality Index', 
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            const SizedBox(height: 16),
+            Text(finalAqi.toString(), 
+              style: TextStyle(fontSize: 56, color: color, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(_getAqiText(finalAqi), 
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PollutantsGrid extends StatelessWidget {
+  final Map<String, dynamic> aqiData;
+  const _PollutantsGrid({super.key, required this.aqiData});
+
+  @override
+  Widget build(BuildContext context) {
+    final iaqi = aqiData['iaqi'] as Map<String, dynamic>?;
+    if (iaqi == null) return const SizedBox.shrink();
+
+    final pollutants = [
+      {'key': 'pm25', 'name': 'PM2.5', 'icon': Icons.blur_on, 'unit': 'μg/m³'},
+      {'key': 'pm10', 'name': 'PM10', 'icon': Icons.grain, 'unit': 'μg/m³'},
+      {'key': 'o3', 'name': 'Ozone', 'icon': Icons.cloud, 'unit': 'ppb'},
+      {'key': 'no2', 'name': 'NO₂', 'icon': Icons.local_shipping, 'unit': 'ppb'},
+      {'key': 'so2', 'name': 'SO₂', 'icon': Icons.factory, 'unit': 'ppb'},
+      {'key': 'co', 'name': 'CO', 'icon': Icons.smoke_free, 'unit': 'ppm'},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Pollutant Levels', 
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.5,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: pollutants.length,
+          itemBuilder: (context, index) {
+            final pollutant = pollutants[index];
+            final value = iaqi[pollutant['key']]?['v'];
+            
+            if (value == null) return const SizedBox.shrink();
+            
+            return _PollutantCard(
+              name: pollutant['name'] as String,
+              value: value.toString(),
+              unit: pollutant['unit'] as String,
+              icon: pollutant['icon'] as IconData,
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _PollutantCard extends StatelessWidget {
+  final String name;
+  final String value;
+  final String unit;
+  final IconData icon;
+
+  const _PollutantCard({
+    super.key,
+    required this.name,
+    required this.value,
+    required this.unit,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: Colors.blue.shade700),
+              const SizedBox(width: 8),
+              Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value, 
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+              Text(unit, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeatherInfoCard extends StatelessWidget {
+  final Map<String, dynamic> aqiData;
+  const _WeatherInfoCard({super.key, required this.aqiData});
+
+  @override
+  Widget build(BuildContext context) {
+    final iaqi = aqiData['iaqi'] as Map<String, dynamic>?;
+    if (iaqi == null) return const SizedBox.shrink();
+
+    final temp = iaqi['t']?['v'];
+    final humidity = iaqi['h']?['v'];
+    final pressure = iaqi['p']?['v'];
+    final wind = iaqi['w']?['v'];
+
+    if (temp == null && humidity == null && pressure == null && wind == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Weather Conditions', 
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                if (temp != null)
+                  _WeatherItem(icon: Icons.thermostat, label: 'Temp', value: '${temp}°C'),
+                if (humidity != null)
+                  _WeatherItem(icon: Icons.water_drop, label: 'Humidity', value: '$humidity%'),
+                if (pressure != null)
+                  _WeatherItem(icon: Icons.speed, label: 'Pressure', value: '$pressure hPa'),
+                if (wind != null)
+                  _WeatherItem(icon: Icons.air, label: 'Wind', value: '$wind m/s'),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WeatherItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _WeatherItem({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.blue.shade700),
+        const SizedBox(height: 4),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+        const SizedBox(height: 2),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+      ],
+    );
+  }
+}
+
+class _LastUpdatedCard extends StatelessWidget {
+  final Map<String, dynamic> aqiData;
+  const _LastUpdatedCard({super.key, required this.aqiData});
+
+  @override
+  Widget build(BuildContext context) {
+    final time = aqiData['time'];
+    if (time == null) return const SizedBox.shrink();
+
+    final timestamp = time['s'] ?? 'Unknown';
+    
+    return Card(
+      elevation: 1,
+      color: Colors.blue.shade50,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          children: [
+            Icon(Icons.update, size: 18, color: Colors.blue.shade700),
+            const SizedBox(width: 8),
+            Text('Last updated: $timestamp', 
+              style: TextStyle(fontSize: 12, color: Colors.blue.shade900)),
           ],
         ),
       ),
@@ -294,18 +557,60 @@ class _HealthRiskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final risk = _calculateRisk(user['healthConditions'] as List? ?? [], aqi);
     Color riskColor = Colors.green;
-    if (risk == 'High Risk') riskColor = Colors.red;
-    if (risk == 'Moderate Risk') riskColor = Colors.orange;
+    IconData riskIcon = Icons.check_circle;
+    
+    if (risk == 'High Risk') {
+      riskColor = Colors.red;
+      riskIcon = Icons.warning;
+    } else if (risk == 'Moderate Risk') {
+      riskColor = Colors.orange;
+      riskIcon = Icons.info;
+    }
 
-    return Card(
-      elevation: 2,
-      child: ListTile(
-        title: const Text('Your Personalized Risk'),
-        subtitle: Text('Based on current AQI & your health data'),
-        trailing: Chip(
-          label: Text(risk, style: const TextStyle(color: Colors.white)),
-          backgroundColor: riskColor,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [riskColor.withOpacity(0.15), riskColor.withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: riskColor.withOpacity(0.3), width: 2),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: riskColor.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(riskIcon, color: riskColor, size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Your Personalized Risk', 
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 4),
+                Text('Based on current AQI & your health data',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: riskColor,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(risk, 
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

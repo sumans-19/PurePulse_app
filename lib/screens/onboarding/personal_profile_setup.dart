@@ -18,28 +18,44 @@ class _PersonalProfileSetupScreenState
     extends State<PersonalProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // --- NEW & UPDATED STATE VARIABLES ---
+  // --- State Variables ---
   DateTime? _dateOfBirth;
-  Position? _currentPosition;
   bool _isFetchingLocation = false;
+  
+  // Storing coordinates directly for flexibility
+  double? _latitude;
+  double? _longitude;
 
+  // Hybrid system for health conditions
   final List<String> _commonConditions = [
-    'Asthma',
-    'Allergies',
-    'Bronchitis',
-    'COPD',
-    'Hay Fever',
-    'Sinusitis'
+    'Asthma', 'Allergies', 'Bronchitis', 'COPD', 'Hay Fever', 'Sinusitis'
   ];
   final List<String> _selectedConditions = [];
   final TextEditingController _conditionController = TextEditingController();
 
-  // New list for multiple outdoor activities (replaces start/end time)
+  // List for multiple outdoor activities
   final List<Map<String, dynamic>> _activities = [];
 
-  // Controllers for form fields
+  // Controllers
   final TextEditingController _dobController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
+
+  // Predefined locations with Hyderabad as the default
+  final Map<String, Map<String, double>> _predefinedLocations = {
+    'Hyderabad': {'lat': 17.3850, 'lon': 78.4867},
+    'Bangalore': {'lat': 12.9716, 'lon': 77.5946},
+    'Delhi': {'lat': 28.7041, 'lon': 77.1025},
+    'Mumbai': {'lat': 19.0760, 'lon': 72.8777},
+    'Chennai': {'lat': 13.0827, 'lon': 80.2707},
+  };
+  String? _selectedCity;
+
+  @override
+  void initState() {
+    super.initState();
+    // Set Hyderabad as the default selection
+    _updateLocationFromCity('Hyderabad');
+  }
 
   @override
   void dispose() {
@@ -48,7 +64,17 @@ class _PersonalProfileSetupScreenState
     _conditionController.dispose();
     super.dispose();
   }
-
+  
+  void _updateLocationFromCity(String cityName) {
+    final location = _predefinedLocations[cityName]!;
+    setState(() {
+      _selectedCity = cityName;
+      _latitude = location['lat'];
+      _longitude = location['lon'];
+      _locationController.text = 'Selected: $cityName';
+    });
+  }
+  
   void _addCustomCondition(String condition) {
     final trimmedCondition = condition.trim();
     if (trimmedCondition.isNotEmpty &&
@@ -60,7 +86,6 @@ class _PersonalProfileSetupScreenState
     }
   }
 
-  // --- NEW: Function to show a dialog for adding an activity ---
   void _showAddActivityDialog() {
     final formKey = GlobalKey<FormState>();
     String? activityName;
@@ -146,47 +171,6 @@ class _PersonalProfileSetupScreenState
     );
   }
 
-  // --- UPDATED: Save profile logic with new data structures ---
-  Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_currentPosition == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select your primary location')),
-      );
-      return;
-    }
-
-    final firestoreService = context.read<FirestoreService>();
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    Map<String, dynamic> profileData = {
-      'dateOfBirth': _dateOfBirth,
-      'healthConditions': _selectedConditions, // Save the new dynamic list
-      'outdoorActivities': _activities, // Save the new activity list
-      'primaryLocation': {
-        'latitude': _currentPosition!.latitude,
-        'longitude': _currentPosition!.longitude,
-      },
-      'profileComplete': true,
-    };
-
-    try {
-      await firestoreService.updateUser(user.uid, profileData);
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-          (route) => false,
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save profile: $e')),
-      );
-    }
-  }
-
-  // --- Unchanged helper functions ---
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -219,7 +203,9 @@ class _PersonalProfileSetupScreenState
       Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
       setState(() {
-        _currentPosition = position;
+        _selectedCity = null;
+        _latitude = position.latitude;
+        _longitude = position.longitude;
         _locationController.text =
             'Lat: ${position.latitude.toStringAsFixed(2)}, Lon: ${position.longitude.toStringAsFixed(2)}';
       });
@@ -229,6 +215,45 @@ class _PersonalProfileSetupScreenState
       );
     } finally {
       setState(() => _isFetchingLocation = false);
+    }
+  }
+  
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_latitude == null || _longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a location.')),
+      );
+      return;
+    }
+
+    final firestoreService = context.read<FirestoreService>();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    Map<String, dynamic> profileData = {
+      'dateOfBirth': _dateOfBirth,
+      'healthConditions': _selectedConditions,
+      'outdoorActivities': _activities,
+      'primaryLocation': {
+        'latitude': _latitude,
+        'longitude': _longitude,
+      },
+      'profileComplete': true,
+    };
+
+    try {
+      await firestoreService.updateUser(user.uid, profileData);
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save profile: $e')),
+      );
     }
   }
 
@@ -251,8 +276,7 @@ class _PersonalProfileSetupScreenState
               const Text(
                   "This information helps us provide personalized air quality alerts."),
               const SizedBox(height: 24),
-
-              // Date of Birth (UI is unchanged)
+              
               TextFormField(
                 controller: _dobController,
                 decoration: const InputDecoration(labelText: "Date of Birth"),
@@ -264,7 +288,6 @@ class _PersonalProfileSetupScreenState
               ),
               const SizedBox(height: 24),
 
-              // --- NEW: Health Conditions Input Section ---
               Text("Health Conditions (if any)",
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
@@ -292,8 +315,6 @@ class _PersonalProfileSetupScreenState
                 }).toList(),
               ),
               const SizedBox(height: 16),
-
-              // Custom condition input
               TextField(
                 controller: _conditionController,
                 decoration: const InputDecoration(
@@ -303,8 +324,6 @@ class _PersonalProfileSetupScreenState
                 onSubmitted: _addCustomCondition,
               ),
               const SizedBox(height: 16),
-
-              // Display all selected conditions
               if (_selectedConditions.isNotEmpty)
                 const Text("Your selected conditions:", style: TextStyle(fontWeight: FontWeight.bold)),
               Wrap(
@@ -324,7 +343,6 @@ class _PersonalProfileSetupScreenState
               ),
               const SizedBox(height: 24),
 
-              // --- NEW: Outdoor Routine Section ---
               Text("Your Outdoor Activities",
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
@@ -365,34 +383,50 @@ class _PersonalProfileSetupScreenState
               ),
               const SizedBox(height: 24),
 
-              // Location (UI is unchanged)
-              TextFormField(
-                controller: _locationController,
-                decoration: const InputDecoration(
-                  labelText: "Primary Location",
-                  hintText: "Click the button to fetch",
-                ),
-                readOnly: true,
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Please fetch your location'
-                    : null,
-              ),
+              Text("Your Primary Location", style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedCity,
+                decoration: const InputDecoration(
+                  labelText: 'Select a City',
+                  border: OutlineInputBorder(),
+                ),
+                items: _predefinedLocations.keys.map((String city) {
+                  return DropdownMenuItem<String>(
+                    value: city,
+                    child: Text(city),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    _updateLocationFromCity(newValue);
+                  }
+                },
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16.0),
+                child: Center(child: Text('OR')),
+              ),
               ElevatedButton.icon(
-                onPressed: _getCurrentLocation,
+                onPressed: _isFetchingLocation ? null : _getCurrentLocation,
                 icon: _isFetchingLocation
                     ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.my_location),
-                label: Text(_isFetchingLocation
-                    ? 'Fetching...'
-                    : 'Get Current Location'),
+                label: Text(
+                    _isFetchingLocation ? 'Fetching...' : 'Use My Current Location'),
               ),
-              const SizedBox(height: 32),
-
-              // Save Button (UI is unchanged)
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _locationController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: "Selected Location",
+                  border: InputBorder.none,
+                ),
+              ),
+              const SizedBox(height: 24),
+              
               ElevatedButton(
                 onPressed: _saveProfile,
                 style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
