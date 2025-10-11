@@ -43,7 +43,8 @@ class _HomeScreenState extends State<HomeScreen> {
       throw Exception('User location has not been set up.');
     }
     final aqiData = await aqiService.getAqiData(
-        userData['primaryLocation']['latitude'], userData['primaryLocation']['longitude']);
+        userData['primaryLocation']['latitude'],
+        userData['primaryLocation']['longitude']);
 
     if (userData['userType'] == 'parent') {
       final childrenSnapshot = await firestoreService.getChildren(user.uid);
@@ -75,10 +76,12 @@ class _HomeScreenState extends State<HomeScreen> {
       future: _loadData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
         if (snapshot.hasError) {
-          return Scaffold(body: Center(child: Text('Error: ${snapshot.error}')));
+          return Scaffold(
+              body: Center(child: Text('Error: ${snapshot.error}')));
         }
         if (!snapshot.hasData) {
           return const Scaffold(body: Center(child: Text('No data found.')));
@@ -90,21 +93,26 @@ class _HomeScreenState extends State<HomeScreen> {
         final List<Widget> pages = [
           userType == 'personal'
               ? _buildPersonalDashboard(data['user'], data['aqi'])
-              : _buildParentDashboard(data['user'], data['aqi'], data['children']),
+              : _buildParentDashboard(
+                  data['user'], data['aqi'], data['children']),
           const NotificationHistoryScreen(),
         ];
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(_selectedIndex == 0 ? 'Dashboard' : 'Notification History'),
+            // The title is now static because this AppBar is only for the dashboard
+            title: const Text('Dashboard'),
+            automaticallyImplyLeading: false,
             actions: [
+              // The "Clear All" button has been removed from here
               IconButton(
                 icon: const Icon(Icons.logout),
                 onPressed: () async {
                   await FirebaseAuth.instance.signOut();
                   if (mounted) {
                     Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      MaterialPageRoute(
+                          builder: (context) => const LoginScreen()),
                       (route) => false,
                     );
                   }
@@ -118,8 +126,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           bottomNavigationBar: BottomNavigationBar(
             items: const <BottomNavigationBarItem>[
-              BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
-              BottomNavigationBarItem(icon: Icon(Icons.history_outlined), label: 'History'),
+              BottomNavigationBarItem(
+                  icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
+              BottomNavigationBarItem(
+                  icon: Icon(Icons.history_outlined), label: 'History'),
             ],
             currentIndex: _selectedIndex,
             onTap: _onItemTapped,
@@ -129,7 +139,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () async {
                     await Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => const AddChildProfileScreen(isFirstChild: false),
+                        builder: (context) =>
+                            const AddChildProfileScreen(isFirstChild: false),
                       ),
                     );
                     setState(() {});
@@ -144,9 +155,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _calculateRisk(List<dynamic> conditions, int aqi) {
-    bool isSensitive = conditions.any((c) => 
-      ['Asthma', 'Bronchitis', 'COPD', 'Allergies', 'Hay Fever'].contains(c)
-    );
+    bool isSensitive = conditions.any((c) =>
+        ['Asthma', 'Bronchitis', 'COPD', 'Allergies', 'Hay Fever'].contains(c));
     if (isSensitive) {
       if (aqi > 100) return 'High Risk';
       if (aqi > 50) return 'Moderate Risk';
@@ -158,8 +168,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildPersonalDashboard(Map<String, dynamic> user, Map<String, dynamic> aqi) {
-    final int aqiValue = (aqi['aqi'] is int) ? aqi['aqi'] : int.tryParse(aqi['aqi'].toString()) ?? 0;
+  Widget _buildPersonalDashboard(
+      Map<String, dynamic> user, Map<String, dynamic> aqi) {
+    final int aqiValue = (aqi['aqi'] is int)
+        ? aqi['aqi']
+        : int.tryParse(aqi['aqi'].toString()) ?? 0;
     final String stationName = aqi['city']?['name'] ?? 'Unknown Station';
 
     return SingleChildScrollView(
@@ -167,7 +180,8 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Hello, ${user['name']}!', style: Theme.of(context).textTheme.headlineSmall),
+          Text('Hello, ${user['name']}!',
+              style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 4),
           Row(
             children: [
@@ -194,71 +208,118 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildParentDashboard(Map<String, dynamic> user, Map<String, dynamic> aqi, List<DocumentSnapshot> children) {
-    final int aqiValue = (aqi['aqi'] is int) ? aqi['aqi'] : int.tryParse(aqi['aqi'].toString()) ?? 0;
+  Widget _buildParentDashboard(Map<String, dynamic> user,
+      Map<String, dynamic> aqi, List<DocumentSnapshot> children) {
+    final int aqiValue = (aqi['aqi'] is int)
+        ? aqi['aqi']
+        : int.tryParse(aqi['aqi'].toString()) ?? 0;
     final String stationName = aqi['city']?['name'] ?? 'Unknown Station';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SingleChildScrollView(
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text('Hello, ${user['name']}!',
+                    style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 4),
                 _AqiDisplayCard(aqiData: aqi),
                 const SizedBox(height: 8),
                 Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.location_on, size: 12, color: Colors.grey),
+                      const Icon(Icons.location_on,
+                          size: 12, color: Colors.grey),
                       const SizedBox(width: 4),
                       Text(
                         stationName,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
                 _PollutantsGrid(aqiData: aqi),
+                const SizedBox(height: 24),
+                const Text(
+                  "Your Children's Profiles",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
               ],
             ),
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
-          child: Text("Your Children's Profiles", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: children.length,
-            itemBuilder: (context, index) {
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
               final child = children[index].data() as Map<String, dynamic>;
-              final risk = _calculateRisk(child['healthConditions'] as List? ?? [], aqiValue);
+              final risk = _calculateRisk(
+                  child['healthConditions'] as List? ?? [], aqiValue);
               Color riskColor = Colors.green;
               if (risk == 'High Risk') riskColor = Colors.red;
               if (risk == 'Moderate Risk') riskColor = Colors.orange;
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: riskColor.withOpacity(0.15),
-                    child: Icon(Icons.child_care, color: riskColor),
-                  ),
-                  title: Text(child['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text((child['healthConditions'] as List?)?.join(', ') ?? 'No conditions listed'),
-                  trailing: Chip(
-                    label: Text(risk, style: const TextStyle(color: Colors.white)),
-                    backgroundColor: riskColor,
+
+              return Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(12),
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: riskColor.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.child_care, color: riskColor, size: 24),
+                    ),
+                    title: Text(
+                      child['name'],
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        (child['healthConditions'] as List?)?.join(', ') ??
+                            'No conditions listed',
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade700),
+                      ),
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: riskColor,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        risk,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               );
             },
+            childCount: children.length,
           ),
         ),
+        const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
       ],
     );
   }
@@ -287,9 +348,10 @@ class _AqiDisplayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final aqiValue = aqiData['aqi'];
-    final int finalAqi = (aqiValue is int) ? aqiValue : int.tryParse(aqiValue.toString()) ?? 0;
+    final int finalAqi =
+        (aqiValue is int) ? aqiValue : int.tryParse(aqiValue.toString()) ?? 0;
     final color = _getAqiColor(finalAqi);
-    
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -304,11 +366,12 @@ class _AqiDisplayCard extends StatelessWidget {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            const Text('Live Air Quality Index', 
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            const Text('Live Air Quality Index',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
             const SizedBox(height: 16),
-            Text(finalAqi.toString(), 
-              style: TextStyle(fontSize: 56, color: color, fontWeight: FontWeight.bold)),
+            Text(finalAqi.toString(),
+                style: TextStyle(
+                    fontSize: 56, color: color, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -316,8 +379,11 @@ class _AqiDisplayCard extends StatelessWidget {
                 color: color,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text(_getAqiText(finalAqi), 
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              child: Text(_getAqiText(finalAqi),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16)),
             ),
           ],
         ),
@@ -339,7 +405,12 @@ class _PollutantsGrid extends StatelessWidget {
       {'key': 'pm25', 'name': 'PM2.5', 'icon': Icons.blur_on, 'unit': 'μg/m³'},
       {'key': 'pm10', 'name': 'PM10', 'icon': Icons.grain, 'unit': 'μg/m³'},
       {'key': 'o3', 'name': 'Ozone', 'icon': Icons.cloud, 'unit': 'ppb'},
-      {'key': 'no2', 'name': 'NO₂', 'icon': Icons.local_shipping, 'unit': 'ppb'},
+      {
+        'key': 'no2',
+        'name': 'NO₂',
+        'icon': Icons.local_shipping,
+        'unit': 'ppb'
+      },
       {'key': 'so2', 'name': 'SO₂', 'icon': Icons.factory, 'unit': 'ppb'},
       {'key': 'co', 'name': 'CO', 'icon': Icons.smoke_free, 'unit': 'ppm'},
     ];
@@ -347,8 +418,8 @@ class _PollutantsGrid extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Pollutant Levels', 
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('Pollutant Levels',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         GridView.builder(
           shrinkWrap: true,
@@ -363,9 +434,9 @@ class _PollutantsGrid extends StatelessWidget {
           itemBuilder: (context, index) {
             final pollutant = pollutants[index];
             final value = iaqi[pollutant['key']]?['v'];
-            
+
             if (value == null) return const SizedBox.shrink();
-            
+
             return _PollutantCard(
               name: pollutant['name'] as String,
               value: value.toString(),
@@ -410,15 +481,21 @@ class _PollutantCard extends StatelessWidget {
             children: [
               Icon(icon, size: 20, color: Colors.blue.shade700),
               const SizedBox(width: 8),
-              Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              Text(name,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 14)),
             ],
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(value, 
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
-              Text(unit, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              Text(value,
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade900)),
+              Text(unit,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
             ],
           ),
         ],
@@ -448,25 +525,36 @@ class _WeatherInfoCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Weather Conditions', 
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('Weather Conditions',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         Card(
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 if (temp != null)
-                  _WeatherItem(icon: Icons.thermostat, label: 'Temp', value: '${temp}°C'),
+                  _WeatherItem(
+                      icon: Icons.thermostat,
+                      label: 'Temp',
+                      value: '${temp}°C'),
                 if (humidity != null)
-                  _WeatherItem(icon: Icons.water_drop, label: 'Humidity', value: '$humidity%'),
+                  _WeatherItem(
+                      icon: Icons.water_drop,
+                      label: 'Humidity',
+                      value: '$humidity%'),
                 if (pressure != null)
-                  _WeatherItem(icon: Icons.speed, label: 'Pressure', value: '$pressure hPa'),
+                  _WeatherItem(
+                      icon: Icons.speed,
+                      label: 'Pressure',
+                      value: '$pressure hPa'),
                 if (wind != null)
-                  _WeatherItem(icon: Icons.air, label: 'Wind', value: '$wind m/s'),
+                  _WeatherItem(
+                      icon: Icons.air, label: 'Wind', value: '$wind m/s'),
               ],
             ),
           ),
@@ -494,9 +582,11 @@ class _WeatherItem extends StatelessWidget {
       children: [
         Icon(icon, color: Colors.blue.shade700),
         const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+        Text(label,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
         const SizedBox(height: 2),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        Text(value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
       ],
     );
   }
@@ -512,7 +602,7 @@ class _LastUpdatedCard extends StatelessWidget {
     if (time == null) return const SizedBox.shrink();
 
     final timestamp = time['s'] ?? 'Unknown';
-    
+
     return Card(
       elevation: 1,
       color: Colors.blue.shade50,
@@ -523,8 +613,8 @@ class _LastUpdatedCard extends StatelessWidget {
           children: [
             Icon(Icons.update, size: 18, color: Colors.blue.shade700),
             const SizedBox(width: 8),
-            Text('Last updated: $timestamp', 
-              style: TextStyle(fontSize: 12, color: Colors.blue.shade900)),
+            Text('Last updated: $timestamp',
+                style: TextStyle(fontSize: 12, color: Colors.blue.shade900)),
           ],
         ),
       ),
@@ -539,9 +629,8 @@ class _HealthRiskCard extends StatelessWidget {
   const _HealthRiskCard({super.key, required this.user, required this.aqi});
 
   String _calculateRisk(List<dynamic> conditions, int aqiValue) {
-    bool isSensitive = conditions.any((c) => 
-      ['Asthma', 'Bronchitis', 'COPD', 'Allergies', 'Hay Fever'].contains(c)
-    );
+    bool isSensitive = conditions.any((c) =>
+        ['Asthma', 'Bronchitis', 'COPD', 'Allergies', 'Hay Fever'].contains(c));
     if (isSensitive) {
       if (aqiValue > 100) return 'High Risk';
       if (aqiValue > 50) return 'Moderate Risk';
@@ -558,7 +647,7 @@ class _HealthRiskCard extends StatelessWidget {
     final risk = _calculateRisk(user['healthConditions'] as List? ?? [], aqi);
     Color riskColor = Colors.green;
     IconData riskIcon = Icons.check_circle;
-    
+
     if (risk == 'High Risk') {
       riskColor = Colors.red;
       riskIcon = Icons.warning;
@@ -593,11 +682,13 @@ class _HealthRiskCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Your Personalized Risk', 
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const Text('Your Personalized Risk',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 4),
                 Text('Based on current AQI & your health data',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.grey.shade700)),
               ],
             ),
           ),
@@ -607,8 +698,9 @@ class _HealthRiskCard extends StatelessWidget {
               color: riskColor,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(risk, 
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(risk,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

@@ -51,6 +51,23 @@ class FirestoreService {
     }
   }
 
+   Future<void> clearAllNotifications(String userId) async {
+    try {
+      final collectionRef = _db.collection('users').doc(userId).collection('notifications');
+      final querySnapshot = await collectionRef.get();
+
+      // Use a batch write to delete all documents efficiently
+      final batch = _db.batch();
+      for (final doc in querySnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      await batch.commit();
+    } catch (e) {
+      print("Error clearing all notifications: $e");
+    }
+  }
+
   // GET a single user's document
   Future<DocumentSnapshot> getUser(String uid) {
     return _db.collection('users').doc(uid).get();
