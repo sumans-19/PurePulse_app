@@ -56,6 +56,9 @@ const checkAqiAndSendAlerts = async () => {
 
       if (!primaryLocation || !fcmToken) continue;
 
+      // --- NEW: Flag to track if a notification was sent for this user ---
+      let notificationSent = false;
+
       const aqiUrl = `https://api.waqi.info/feed/geo:${primaryLocation.latitude};${primaryLocation.longitude}/?token=${waqiToken}`;
       const response = await axios.get(aqiUrl);
 
@@ -68,7 +71,7 @@ const checkAqiAndSendAlerts = async () => {
       const historyRef = db.collection('users').doc(user.uid).collection('aqi_history');
       await historyRef.add({ aqi: currentAqi, timestamp: now });
 
-      // --- PRIORITY 1: SPIKE ALERT (Location-based) ---
+      // --- PRIORITY 1: SPIKE ALERT ---
       const lastSpikeAlert = lastNotificationTimestamps.spike?.toDate() || new Date(0);
       if (now - lastSpikeAlert > NOTIFICATION_COOLDOWN_HOURS * 3600 * 1000) {
         const historySnapshot = await historyRef.orderBy('timestamp', 'desc').limit(2).get();
@@ -77,12 +80,14 @@ const checkAqiAndSendAlerts = async () => {
           if (currentAqi - previousAqi >= 40) {
             const message = { notification: { title: '⚠️ Sudden AQI Spike!', body: `Hi ${name}, air quality in your area worsened rapidly to an AQI of ${currentAqi}.` }, token: fcmToken };
             await sendAndSaveNotification(user, message, 'spike');
-            continue; // High priority, skip other checks for this user
+            notificationSent = true;
           }
         }
       }
       
-      // --- PRIORITY 2: FORECAST ALERT (Location-based) ---
+      if (notificationSent) continue;
+
+      // --- PRIORITY 2: FORECAST ALERT ---
       const lastForecastAlert = lastNotificationTimestamps.forecast?.toDate() || new Date(0);
       if (outdoorActivities.length > 0 && (now - lastForecastAlert > NOTIFICATION_COOLDOWN_HOURS * 3600 * 1000)) {
         const forecast = response.data.data.forecast?.daily?.pm25;
@@ -91,47 +96,51 @@ const checkAqiAndSendAlerts = async () => {
         if (todayForecast && todayForecast.avg > 100) {
            const message = { notification: { title: 'Heads-up for Today!', body: `Hi ${name}, the AQI is forecasted to be poor today. You may want to reschedule outdoor activities.` }, token: fcmToken };
            await sendAndSaveNotification(user, message, 'forecast');
-           continue; // High priority, skip other checks for this user
+           notificationSent = true;
         }
       }
 
-      // --- PRIORITY 3: STANDARD HIGH AQI ALERT (Personalized) ---
+      if (notificationSent) continue;
+
+      // --- PRIORITY 3: STANDARD HIGH AQI ALERT ---
       const lastStandardAlert = lastNotificationTimestamps.standard?.toDate() || new Date(0);
-      if (now - lastStandardAlert < NOTIFICATION_COOLDOWN_HOURS * 3600 * 1000) {
-          continue; // Cooldown active, skip to next user
-      }
-      
-      if (userType === 'parent') {
-        const childrenSnapshot = await db.collection('users').doc(user.uid).collection('children').get();
-        if (childrenSnapshot.empty) continue;
-
-        for (const childDoc of childrenSnapshot.docs) {
-          const child = childDoc.data();
-          const isSensitive = child.healthConditions?.some(c => ['Asthma', 'Bronchitis', 'COPD'].includes(c));
-          const childThreshold = isSensitive ? 100 : 150;
-
-          if (currentAqi > childThreshold) {
+      if (now - lastStandardAlert > NOTIFICATION_COOLDOWN_HOURS * 3600 * 1000) {
+        if (userType === 'parent') {
+          const childrenSnapshot = await db.collection('users').doc(user.uid).collection('children').get();
+          if (childrenSnapshot.empty) continue;
+          for (const childDoc of childrenSnapshot.docs) {
+            const child = childDoc.data();
+            const isSensitive = child.healthConditions?.some(c => ['Asthma', 'Bronchitis', 'COPD'].includes(c));
+            const childThreshold = isSensitive ? 100 : 150;
+            if (currentAqi > childThreshold) {
+              const description = getAqiDescription(currentAqi);
+              const message = {
+                notification: {
+                  title: `High AQI Alert for ${child.name}`,
+                  body: `The current AQI is ${currentAqi} (${description}), which is above the recommended level for ${child.name}.`
+                },
+                token: fcmToken
+              };
+              await sendAndSaveNotification(user, message, 'standard');
+              notificationSent = true;
+              break; 
+            }
+          }
+        } else { // Personal user
+          const isSensitive = healthConditions.some(c => ['Asthma', 'Bronchitis', 'COPD'].includes(c));
+          const aqiThreshold = isSensitive ? 100 : 150;
+          if (currentAqi > aqiThreshold) {
             const description = getAqiDescription(currentAqi);
-            const message = {
-              notification: {
-                title: `High AQI Alert for ${child.name}`,
-                body: `The current AQI is ${currentAqi} (${description}), which is above the recommended level for ${child.name}.`
-              },
-              token: fcmToken
-            };
+            const message = { notification: { title: 'High AQI Alert', body: `Hi ${name}, the current AQI is ${currentAqi} (${description}), which is above your personalized risk level.` }, token: fcmToken };
             await sendAndSaveNotification(user, message, 'standard');
-            break; // Send one alert for the first at-risk child and stop for this parent
+            notificationSent = true;
           }
         }
-      } else { // Personal user
-        const isSensitive = healthConditions.some(c => ['Asthma', 'Bronchitis', 'COPD'].includes(c));
-        const aqiThreshold = isSensitive ? 100 : 150;
-
-        if (currentAqi > aqiThreshold) {
-          const description = getAqiDescription(currentAqi);
-          const message = { notification: { title: 'High AQI Alert', body: `Hi ${name}, the current AQI is ${currentAqi} (${description}), which is above your personalized risk level.` }, token: fcmToken };
-          await sendAndSaveNotification(user, message, 'standard');
-        }
+      }
+      
+      // --- NEW: Final check to print the log message ---
+      if (!notificationSent) {
+          console.log(` -> Nothing to alert for ${name}.`);
       }
     }
   } catch (error) {
@@ -149,6 +158,6 @@ function getAqiDescription(aqi) {
 }
 
 // Production schedule: Run once every hour.
-cron.schedule('0 * * * *', checkAqiAndSendAlerts);
+cron.schedule('*/1 * * * *', checkAqiAndSendAlerts);
 
 console.log('✅ Intelligent backend server started. Checks will run every hour.');
