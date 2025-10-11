@@ -17,17 +17,29 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      return web;
+      throw UnsupportedError(
+        'DefaultFirebaseOptions have not been configured for web - '
+        'you can reconfigure this by running the FlutterFire CLI again.',
+      );
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        return ios;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for ios - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.macOS:
-        return macos;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for macos - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.windows:
-        return windows;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for windows - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -40,49 +52,11 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAFna6SQGyzMD2c9Ho_9eaXVLbf3e0X39s',
-    appId: '1:484097875003:web:6186f1975f9f0edf04901e',
-    messagingSenderId: '484097875003',
-    projectId: 'purepulse-fd912',
-    authDomain: 'purepulse-fd912.firebaseapp.com',
-    storageBucket: 'purepulse-fd912.firebasestorage.app',
-    measurementId: 'G-JQP61JPRLX',
-  );
-
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAEmifipPdAw_ko5GKtUk7ytu2q_3jJ9lc',
-    appId: '1:484097875003:android:7522396c5087c95704901e',
-    messagingSenderId: '484097875003',
-    projectId: 'purepulse-fd912',
-    storageBucket: 'purepulse-fd912.firebasestorage.app',
-  );
-
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCpdr1zJ9zgVNXz9iW_5_peh-u8EXV3XWU',
-    appId: '1:484097875003:ios:173f39557f0ebd2304901e',
-    messagingSenderId: '484097875003',
-    projectId: 'purepulse-fd912',
-    storageBucket: 'purepulse-fd912.firebasestorage.app',
-    iosBundleId: 'com.example.purepulseApp',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCpdr1zJ9zgVNXz9iW_5_peh-u8EXV3XWU',
-    appId: '1:484097875003:ios:173f39557f0ebd2304901e',
-    messagingSenderId: '484097875003',
-    projectId: 'purepulse-fd912',
-    storageBucket: 'purepulse-fd912.firebasestorage.app',
-    iosBundleId: 'com.example.purepulseApp',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyAFna6SQGyzMD2c9Ho_9eaXVLbf3e0X39s',
-    appId: '1:484097875003:web:d095d437477d450f04901e',
-    messagingSenderId: '484097875003',
-    projectId: 'purepulse-fd912',
-    authDomain: 'purepulse-fd912.firebaseapp.com',
-    storageBucket: 'purepulse-fd912.firebasestorage.app',
-    measurementId: 'G-6Z2XCD8PEC',
+    apiKey: 'AIzaSyCWUxw76RF7iB2v5PvFzItmNCr-DnzNQrQ',
+    appId: '1:889176534503:android:df87afddb2b5381ffce142',
+    messagingSenderId: '889176534503',
+    projectId: 'mypureplus',
+    storageBucket: 'mypureplus.firebasestorage.app',
   );
 }
