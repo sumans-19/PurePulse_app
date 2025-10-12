@@ -51,7 +51,6 @@ async function checkAqiAndSendAlerts() {
       }
     } catch (error) {
       const userName = userDoc.data().name || userDoc.id;
-      console.error(`   ERROR: Failed to process user "${userName}". Reason: ${error.message}`);
     }
   }
 }

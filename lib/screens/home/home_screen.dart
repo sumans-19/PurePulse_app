@@ -1,12 +1,14 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:purepulse_app/services/aqi_service.dart';
 import 'package:purepulse_app/services/firestore_service.dart';
 import 'package:purepulse_app/screens/auth/login_screen.dart';
 import 'package:purepulse_app/screens/onboarding/add_child_profile_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:purepulse_app/screens/home/notification_history_screen.dart';
 import 'package:purepulse_app/screens/home/profile_screen.dart';
 import 'package:purepulse_app/screens/onboarding/parent_profile_setup.dart';
@@ -78,6 +80,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
 
     return {'user': userData, 'aqi': aqiData};
+  }
+
+  Future<void> _launchWebLink(String urlString) async {
+    try {
+      final Uri url = Uri.parse(urlString);
+
+      // Try to launch with external app first
+      if (await canLaunchUrl(url)) {
+        await launchUrl(
+          url,
+          mode: LaunchMode.externalApplication,
+        );
+      } else {
+        // Fallback: try with platformUrl mode
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not open link. Please install a browser.'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening link: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   void _setupFCM() async {
@@ -179,19 +218,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             automaticallyImplyLeading: false,
             actions: [
-              if (_selectedIndex == 0 && userType == 'parent')
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  tooltip: 'Add Child',
-                  onPressed: () {
-                    Navigator.of(context)
-                        .push(MaterialPageRoute(
-                          builder: (context) =>
-                              const AddChildProfileScreen(isFirstChild: false),
-                        ))
-                        .then((_) => setState(() {}));
-                  },
-                ),
+              IconButton(
+                icon: const Icon(Icons.language),
+                tooltip: 'Web Access',
+                onPressed: () {
+                  // Replace with your actual web URL
+                  _launchWebLink('http://10.245.117.147:5173/');
+                },
+              ),
               if (_selectedIndex == 1)
                 IconButton(
                   icon: const Icon(Icons.delete_sweep_outlined),
@@ -334,6 +368,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 20),
           _LastUpdatedCard(aqiData: aqi),
           const SizedBox(height: 16),
+          _WebAccessCard(onPressed: () {
+            _launchWebLink('http://10.245.117.147:5173/');
+          }),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -408,6 +446,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               );
             },
             childCount: children.length,
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: _WebAccessCard(onPressed: () {
+              _launchWebLink('http://10.245.117.147:5173/');
+            }),
           ),
         ),
         const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
@@ -1793,6 +1839,80 @@ class _HealthRiskCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _WebAccessCard extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _WebAccessCard({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF0891b2).withOpacity(0.1),
+              const Color(0xFF06b6d4).withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF06b6d4).withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF06b6d4).withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF06b6d4).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.language,
+                    size: 24, color: Color(0xFF0891b2)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Web Access',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0e7490),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Click here to access the web',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF0891b2),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios,
+                  size: 16, color: Color(0xFF0891b2)),
+            ],
+          ),
+        ),
       ),
     );
   }
