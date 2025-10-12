@@ -791,8 +791,6 @@ class _AqiDisplayCard extends StatelessWidget {
     return Icons.check_circle_outline;
   }
 
-  
-
   @override
   Widget build(BuildContext context) {
     final aqiValue = aqiData['aqi'];
@@ -1076,6 +1074,127 @@ class _PollutantCardState extends State<_PollutantCard> with SingleTickerProvide
     super.dispose();
   }
 
+  String _getPollutantRecommendation(String pollutant, double value) {
+    switch (pollutant) {
+      case 'PM2.5':
+        if (value > 100) return 'Avoid outdoor activities. Fine particulates are extremely harmful. Stay indoors and use air purifiers if available.';
+        if (value > 50) return 'Reduce outdoor exposure. Wear N95 masks if you must go outside.';
+        return 'Air quality is acceptable. You can safely enjoy outdoor activities.';
+      case 'PM10':
+        if (value > 150) return 'Limit outdoor activities. Coarse dust particles are affecting air quality significantly.';
+        if (value > 75) return 'Reduce strenuous outdoor activities. Consider wearing masks outdoors.';
+        return 'PM10 levels are safe for outdoor activities.';
+      case 'Ozone':
+        if (value > 100) return 'High ozone levels detected. Avoid outdoor exercise and stay indoors if possible.';
+        if (value > 60) return 'Ozone levels are elevated. Limit strenuous activities outdoors.';
+        return 'Ozone levels are healthy. Safe to exercise outdoors.';
+      case 'NO₂':
+        if (value > 200) return 'Very high NO₂ levels (vehicle emissions). Avoid busy traffic areas and stay indoors.';
+        if (value > 100) return 'High NO₂ levels. Reduce exposure, especially near traffic congestion.';
+        return 'NO₂ levels are acceptable for normal outdoor activities.';
+      case 'SO₂':
+        if (value > 125) return 'Elevated SO₂ levels (industrial emissions). Limit outdoor exposure and use masks.';
+        if (value > 50) return 'SO₂ levels are moderate. Sensitive groups should limit outdoor time.';
+        return 'SO₂ levels are healthy and safe.';
+      case 'CO':
+        if (value > 1000) return 'Very high CO levels detected. Avoid outdoor activities and ensure good ventilation indoors.';
+        if (value > 500) return 'High CO levels present. Limit time outdoors, especially during peak hours.';
+        return 'CO levels are safe for normal activities.';
+      default:
+        return 'Monitor this pollutant level for any changes.';
+    }
+  }
+
+  void _showPollutantDialog() {
+    final recommendation = _getPollutantRecommendation(widget.name, double.parse(widget.value));
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF06b6d4).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(widget.icon, color: const Color(0xFF0891b2), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text(widget.name),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF06b6d4).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      widget.value,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0e7490),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      widget.unit,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Recommendation:',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xFF0e7490),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                recommendation,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade700,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Color(0xFF0891b2)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -1086,6 +1205,7 @@ class _PollutantCardState extends State<_PollutantCard> with SingleTickerProvide
       onTapUp: (_) {
         setState(() => _isPressed = false);
         _controller.reverse();
+        _showPollutantDialog();
       },
       onTapCancel: () {
         setState(() => _isPressed = false);
