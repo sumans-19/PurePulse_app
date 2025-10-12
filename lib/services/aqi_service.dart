@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AqiService {
-  final String _token = '324250aa1f0fd6b2e17e150d8f521f44a688b70b'; // <-- Paste your new WAQI token
+  final String _token = '324250aa1f0fd6b2e17e150d8f521f44a688b70b';
+
+  get latestData => null; // <-- Paste your new WAQI token
 
   Future<Map<String, dynamic>> getAqiData(double lat, double lon) async {
     final url = Uri.parse('https://api.waqi.info/feed/geo:$lat;$lon/?token=$_token');

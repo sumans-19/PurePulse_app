@@ -11,6 +11,7 @@ import 'package:purepulse_app/screens/home/notification_history_screen.dart';
 import 'package:purepulse_app/screens/home/profile_screen.dart';
 import 'package:purepulse_app/screens/onboarding/parent_profile_setup.dart';
 import 'package:purepulse_app/screens/onboarding/personal_profile_setup.dart';
+import 'package:purepulse_app/screens/chat/chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     )..repeat(reverse: true);
-    
+
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -178,6 +179,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             automaticallyImplyLeading: false,
             actions: [
+              if (_selectedIndex == 0 && userType == 'parent')
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  tooltip: 'Add Child',
+                  onPressed: () {
+                    Navigator.of(context)
+                        .push(MaterialPageRoute(
+                          builder: (context) =>
+                              const AddChildProfileScreen(isFirstChild: false),
+                        ))
+                        .then((_) => setState(() {}));
+                  },
+                ),
               if (_selectedIndex == 1)
                 IconButton(
                   icon: const Icon(Icons.delete_sweep_outlined),
@@ -197,7 +211,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           actions: <Widget>[
                             TextButton(
                               child: const Text('Cancel'),
-                              onPressed: () => Navigator.of(dialogContext).pop(),
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(),
                             ),
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
@@ -265,22 +280,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             currentIndex: _selectedIndex,
             onTap: _onItemTapped,
           ),
-          floatingActionButton: (_selectedIndex == 0 && userType == 'parent')
-              ? FloatingActionButton.extended(
-                  backgroundColor: const Color(0xFF06b6d4),
-                  onPressed: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            const AddChildProfileScreen(isFirstChild: false),
-                      ),
-                    );
-                    setState(() {});
-                  },
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text('Add Child', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                )
-              : null,
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const ChatScreen()),
+              );
+            },
+            child: const Icon(Icons.chat_bubble_outline),
+            tooltip: 'Ask PurePulse Assist',
+          ),
         );
       },
     );
@@ -348,7 +356,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               children: [
                 _buildHeaderSection(user['name'], stationName),
                 const SizedBox(height: 24),
-                _AqiDisplayCard(aqiData: aqi, pulseController: _pulseController),
+                _AqiDisplayCard(
+                    aqiData: aqi, pulseController: _pulseController),
                 const SizedBox(height: 20),
                 _QuickStatsRow(aqiData: aqi),
                 const SizedBox(height: 20),
@@ -362,7 +371,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         color: const Color(0xFF06b6d4).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.family_restroom, color: Color(0xFF0891b2), size: 20),
+                      child: const Icon(Icons.family_restroom,
+                          color: Color(0xFF0891b2), size: 20),
                     ),
                     const SizedBox(width: 12),
                     const Text(
@@ -428,7 +438,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               color: const Color(0xFF06b6d4).withOpacity(0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.wb_sunny_outlined, color: Color(0xFF0891b2), size: 28),
+            child: const Icon(Icons.wb_sunny_outlined,
+                color: Color(0xFF0891b2), size: 28),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -446,7 +457,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.location_on, size: 14, color: Color(0xFF0891b2)),
+                    const Icon(Icons.location_on,
+                        size: 14, color: Color(0xFF0891b2)),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -476,7 +488,7 @@ class _QuickStatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iaqi = aqiData['iaqi'] as Map<String, dynamic>?;
-    if (iaqi == null) return const SizedBox.shrink();
+    if (iaqi == null || iaqi.isEmpty) return const SizedBox.shrink();
 
     final pm25 = iaqi['pm25']?['v'];
     final temp = iaqi['t']?['v'];
@@ -503,7 +515,8 @@ class _QuickStatsRow extends StatelessWidget {
               unit: '°C',
             ),
           ),
-        if ((pm25 != null || temp != null) && humidity != null) const SizedBox(width: 12),
+        if ((pm25 != null || temp != null) && humidity != null)
+          const SizedBox(width: 12),
         if (humidity != null)
           Expanded(
             child: _QuickStatCard(
@@ -606,7 +619,8 @@ class _ChildProfileCard extends StatefulWidget {
   State<_ChildProfileCard> createState() => _ChildProfileCardState();
 }
 
-class _ChildProfileCardState extends State<_ChildProfileCard> with SingleTickerProviderStateMixin {
+class _ChildProfileCardState extends State<_ChildProfileCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -642,7 +656,8 @@ class _ChildProfileCardState extends State<_ChildProfileCard> with SingleTickerP
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: widget.riskColor.withOpacity(0.3), width: 2),
+              border: Border.all(
+                  color: widget.riskColor.withOpacity(0.3), width: 2),
               boxShadow: [
                 BoxShadow(
                   color: widget.riskColor.withOpacity(0.1),
@@ -669,7 +684,8 @@ class _ChildProfileCardState extends State<_ChildProfileCard> with SingleTickerP
                           ),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.child_care, color: widget.riskColor, size: 30),
+                        child: Icon(Icons.child_care,
+                            color: widget.riskColor, size: 30),
                       ),
                       Positioned(
                         right: 0,
@@ -681,7 +697,8 @@ class _ChildProfileCardState extends State<_ChildProfileCard> with SingleTickerP
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2),
                           ),
-                          child: const Icon(Icons.favorite, color: Colors.white, size: 12),
+                          child: const Icon(Icons.favorite,
+                              color: Colors.white, size: 12),
                         ),
                       ),
                     ],
@@ -701,13 +718,15 @@ class _ChildProfileCardState extends State<_ChildProfileCard> with SingleTickerP
                         ),
                         const SizedBox(height: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: const Color(0xFF06b6d4).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            (widget.child['healthConditions'] as List?)?.join(', ') ??
+                            (widget.child['healthConditions'] as List?)
+                                    ?.join(', ') ??
                                 'No conditions',
                             style: const TextStyle(
                               fontSize: 12,
@@ -725,7 +744,8 @@ class _ChildProfileCardState extends State<_ChildProfileCard> with SingleTickerP
                   Column(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           color: widget.riskColor,
                           borderRadius: BorderRadius.circular(20),
@@ -761,7 +781,7 @@ class _ChildProfileCardState extends State<_ChildProfileCard> with SingleTickerP
 class _AqiDisplayCard extends StatelessWidget {
   final Map<String, dynamic> aqiData;
   final AnimationController pulseController;
-  
+
   const _AqiDisplayCard({
     required this.aqiData,
     required this.pulseController,
@@ -839,7 +859,8 @@ class _AqiDisplayCard extends StatelessWidget {
                               color: color.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Icon(_getAqiIcon(finalAqi), color: color, size: 20),
+                            child: Icon(_getAqiIcon(finalAqi),
+                                color: color, size: 20),
                           ),
                           const SizedBox(width: 12),
                           const Text(
@@ -853,7 +874,8 @@ class _AqiDisplayCard extends StatelessWidget {
                         ],
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(20),
@@ -891,7 +913,8 @@ class _AqiDisplayCard extends StatelessWidget {
                         height: 160,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: color.withOpacity(0.3), width: 8),
+                          border: Border.all(
+                              color: color.withOpacity(0.3), width: 8),
                           gradient: RadialGradient(
                             colors: [
                               color.withOpacity(0.1),
@@ -927,7 +950,8 @@ class _AqiDisplayCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 10),
                     decoration: BoxDecoration(
                       color: color,
                       borderRadius: BorderRadius.circular(24),
@@ -966,16 +990,27 @@ class _PollutantsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iaqi = aqiData['iaqi'] as Map<String, dynamic>?;
-    if (iaqi == null) return const SizedBox.shrink();
+    if (iaqi == null || iaqi.isEmpty) return const SizedBox.shrink();
 
-    final pollutants = [
+    final allPollutants = [
       {'key': 'pm25', 'name': 'PM2.5', 'icon': Icons.blur_on, 'unit': 'μg/m³'},
       {'key': 'pm10', 'name': 'PM10', 'icon': Icons.grain, 'unit': 'μg/m³'},
       {'key': 'o3', 'name': 'Ozone', 'icon': Icons.cloud, 'unit': 'ppb'},
-      {'key': 'no2', 'name': 'NO₂', 'icon': Icons.local_shipping, 'unit': 'ppb'},
+      {
+        'key': 'no2',
+        'name': 'NO₂',
+        'icon': Icons.local_shipping,
+        'unit': 'ppb'
+      },
       {'key': 'so2', 'name': 'SO₂', 'icon': Icons.factory, 'unit': 'ppb'},
       {'key': 'co', 'name': 'CO', 'icon': Icons.smoke_free, 'unit': 'ppm'},
     ];
+
+    final pollutants = allPollutants.where((pollutant) {
+      return iaqi[pollutant['key']]?['v'] != null;
+    }).toList();
+
+    if (pollutants.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -988,7 +1023,8 @@ class _PollutantsGrid extends StatelessWidget {
                 color: const Color(0xFF06b6d4).withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.analytics_outlined, color: Color(0xFF0891b2), size: 20),
+              child: const Icon(Icons.analytics_outlined,
+                  color: Color(0xFF0891b2), size: 20),
             ),
             const SizedBox(width: 12),
             const Text(
@@ -1015,8 +1051,6 @@ class _PollutantsGrid extends StatelessWidget {
           itemBuilder: (context, index) {
             final pollutant = pollutants[index];
             final value = iaqi[pollutant['key']]?['v'];
-
-            if (value == null) return const SizedBox.shrink();
 
             return _PollutantCard(
               name: pollutant['name'] as String,
@@ -1051,7 +1085,8 @@ class _PollutantCard extends StatefulWidget {
   State<_PollutantCard> createState() => _PollutantCardState();
 }
 
-class _PollutantCardState extends State<_PollutantCard> with SingleTickerProviderStateMixin {
+class _PollutantCardState extends State<_PollutantCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   bool _isPressed = false;
@@ -1077,28 +1112,40 @@ class _PollutantCardState extends State<_PollutantCard> with SingleTickerProvide
   String _getPollutantRecommendation(String pollutant, double value) {
     switch (pollutant) {
       case 'PM2.5':
-        if (value > 100) return 'Avoid outdoor activities. Fine particulates are extremely harmful. Stay indoors and use air purifiers if available.';
-        if (value > 50) return 'Reduce outdoor exposure. Wear N95 masks if you must go outside.';
+        if (value > 100)
+          return 'Avoid outdoor activities. Fine particulates are extremely harmful. Stay indoors and use air purifiers if available.';
+        if (value > 50)
+          return 'Reduce outdoor exposure. Wear N95 masks if you must go outside.';
         return 'Air quality is acceptable. You can safely enjoy outdoor activities.';
       case 'PM10':
-        if (value > 150) return 'Limit outdoor activities. Coarse dust particles are affecting air quality significantly.';
-        if (value > 75) return 'Reduce strenuous outdoor activities. Consider wearing masks outdoors.';
+        if (value > 150)
+          return 'Limit outdoor activities. Coarse dust particles are affecting air quality significantly.';
+        if (value > 75)
+          return 'Reduce strenuous outdoor activities. Consider wearing masks outdoors.';
         return 'PM10 levels are safe for outdoor activities.';
       case 'Ozone':
-        if (value > 100) return 'High ozone levels detected. Avoid outdoor exercise and stay indoors if possible.';
-        if (value > 60) return 'Ozone levels are elevated. Limit strenuous activities outdoors.';
+        if (value > 100)
+          return 'High ozone levels detected. Avoid outdoor exercise and stay indoors if possible.';
+        if (value > 60)
+          return 'Ozone levels are elevated. Limit strenuous activities outdoors.';
         return 'Ozone levels are healthy. Safe to exercise outdoors.';
       case 'NO₂':
-        if (value > 200) return 'Very high NO₂ levels (vehicle emissions). Avoid busy traffic areas and stay indoors.';
-        if (value > 100) return 'High NO₂ levels. Reduce exposure, especially near traffic congestion.';
+        if (value > 200)
+          return 'Very high NO₂ levels (vehicle emissions). Avoid busy traffic areas and stay indoors.';
+        if (value > 100)
+          return 'High NO₂ levels. Reduce exposure, especially near traffic congestion.';
         return 'NO₂ levels are acceptable for normal outdoor activities.';
       case 'SO₂':
-        if (value > 125) return 'Elevated SO₂ levels (industrial emissions). Limit outdoor exposure and use masks.';
-        if (value > 50) return 'SO₂ levels are moderate. Sensitive groups should limit outdoor time.';
+        if (value > 125)
+          return 'Elevated SO₂ levels (industrial emissions). Limit outdoor exposure and use masks.';
+        if (value > 50)
+          return 'SO₂ levels are moderate. Sensitive groups should limit outdoor time.';
         return 'SO₂ levels are healthy and safe.';
       case 'CO':
-        if (value > 1000) return 'Very high CO levels detected. Avoid outdoor activities and ensure good ventilation indoors.';
-        if (value > 500) return 'High CO levels present. Limit time outdoors, especially during peak hours.';
+        if (value > 1000)
+          return 'Very high CO levels detected. Avoid outdoor activities and ensure good ventilation indoors.';
+        if (value > 500)
+          return 'High CO levels present. Limit time outdoors, especially during peak hours.';
         return 'CO levels are safe for normal activities.';
       default:
         return 'Monitor this pollutant level for any changes.';
@@ -1106,8 +1153,9 @@ class _PollutantCardState extends State<_PollutantCard> with SingleTickerProvide
   }
 
   void _showPollutantDialog() {
-    final recommendation = _getPollutantRecommendation(widget.name, double.parse(widget.value));
-    
+    final recommendation =
+        _getPollutantRecommendation(widget.name, double.parse(widget.value));
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -1123,7 +1171,8 @@ class _PollutantCardState extends State<_PollutantCard> with SingleTickerProvide
                   color: const Color(0xFF06b6d4).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(widget.icon, color: const Color(0xFF0891b2), size: 20),
+                child:
+                    Icon(widget.icon, color: const Color(0xFF0891b2), size: 20),
               ),
               const SizedBox(width: 12),
               Text(widget.name),
@@ -1225,7 +1274,8 @@ class _PollutantCardState extends State<_PollutantCard> with SingleTickerProvide
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF06b6d4).withOpacity(_isPressed ? 0.15 : 0.08),
+                color: const Color(0xFF06b6d4)
+                    .withOpacity(_isPressed ? 0.15 : 0.08),
                 blurRadius: _isPressed ? 12 : 8,
                 offset: Offset(0, _isPressed ? 6 : 2),
               ),
@@ -1250,10 +1300,12 @@ class _PollutantCardState extends State<_PollutantCard> with SingleTickerProvide
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(widget.icon, size: 20, color: const Color(0xFF0891b2)),
+                    child: Icon(widget.icon,
+                        size: 20, color: const Color(0xFF0891b2)),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFF06b6d4).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -1347,7 +1399,8 @@ class _WeatherInfoCard extends StatelessWidget {
                 color: const Color(0xFF06b6d4).withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.wb_cloudy_outlined, color: Color(0xFF0891b2), size: 20),
+              child: const Icon(Icons.wb_cloudy_outlined,
+                  color: Color(0xFF0891b2), size: 20),
             ),
             const SizedBox(width: 12),
             const Text(
@@ -1413,7 +1466,8 @@ class _WeatherInfoCard extends StatelessWidget {
                   ),
                 ],
                 if (wind != null) ...[
-                  if (temp != null || humidity != null || pressure != null) _VerticalDivider(),
+                  if (temp != null || humidity != null || pressure != null)
+                    _VerticalDivider(),
                   Expanded(
                     child: _WeatherItem(
                       icon: Icons.air,
@@ -1535,7 +1589,8 @@ class _LastUpdatedCard extends StatelessWidget {
                 color: const Color(0xFF06b6d4).withOpacity(0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.update, size: 20, color: Color(0xFF0891b2)),
+              child:
+                  const Icon(Icons.update, size: 20, color: Color(0xFF0891b2)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1687,7 +1742,8 @@ class _HealthRiskCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
                   color: riskColor,
                   borderRadius: BorderRadius.circular(24),
