@@ -1,4 +1,4 @@
-// TEST SCRIPT 4: PARENT/CHILD ALERT (with Error Handling and History)
+// TEST SCRIPT 4: PARENT/CHILD ALERT (with Moderate AQI)
 require('dotenv').config();
 const admin = require('firebase-admin');
 const cron = require('node-cron');
@@ -26,27 +26,30 @@ async function checkAqiAndSendAlerts() {
       const childrenSnapshot = await db.collection('users').doc(user.uid).collection('children').get();
       if (childrenSnapshot.empty) continue;
 
-      const currentAqi = 101; // Force a high AQI for sensitive children
+      // --- CHANGE 1: Use a "Moderate" AQI value ---
+      const currentAqi = 75; 
 
       for (const childDoc of childrenSnapshot.docs) {
         const child = childDoc.data();
         const isSensitive = child.healthConditions?.some(c => ['Asthma', 'Bronchitis', 'COPD'].includes(c));
-        const childThreshold = isSensitive ? 100 : 150;
+
+        // --- CHANGE 2: Lower the threshold for sensitive children ---
+        const childThreshold = isSensitive ? 50 : 100; // Triggers if sensitive
 
         console.log(`  - Checking child: ${child.name}. Sensitive: ${isSensitive}. Threshold: ${childThreshold}.`);
 
         if (currentAqi > childThreshold) {
           console.log(`    ALERT: AQI is above threshold for ${child.name}.`);
-          
-          // --- THIS IS THE ONLY CHANGED PART ---
+
+          // --- CHANGE 3: Updated notification message for moderate risk ---
           const message = {
             notification: {
-              title: `High AQI Alert for ${child.name}`,
-              body: `Heads-up ${user.name}! The AQI is now ${currentAqi}, which poses a risk for ${child.name} due to their health conditions. It's recommended to limit their outdoor activities today.`
+              title: `Moderate AQI Alert for ${child.name}`,
+              body: `Hi ${user.name}, the AQI is ${currentAqi} (Moderate), which may affect sensitive individuals like ${child.name}. Consider shorter outdoor playtime today.`
             },
             token: user.fcmToken
           };
-          // ------------------------------------
+          // -----------------------------------------------------------------
 
           await messaging.send(message);
           console.log(`    SUCCESS: Sent parent alert for ${child.name}.`);

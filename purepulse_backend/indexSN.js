@@ -1,4 +1,4 @@
-// TEST SCRIPT 1: STANDARD ALERT (with Enhanced Notification)
+// TEST SCRIPT 1: STANDARD ALERT (with Moderate AQI)
 require('dotenv').config();
 const admin = require('firebase-admin');
 const cron = require('node-cron');
@@ -13,7 +13,7 @@ const messaging = admin.messaging();
 
 // Helper function to get the risk level description
 function getAqiDescription(aqi) {
-  if (aqi > 100) return 'Unhealthy for Sensitive Groups';
+  if (aqi > 50) return 'Moderate';
   return 'Good';
 }
 
@@ -26,23 +26,27 @@ async function checkAqiAndSendAlerts() {
       const user = { uid: userDoc.id, ...userDoc.data() };
       if (!user.fcmToken) continue;
       
-      const currentAqi = 101; // Force a value just above the sensitive threshold
+      // --- CHANGE 1: Use a "Moderate" AQI value ---
+      const currentAqi = 75; 
+      
       const isSensitive = user.healthConditions?.some(c => ['Asthma', 'Bronchitis', 'COPD'].includes(c));
-      const aqiThreshold = isSensitive ? 100 : 150;
+      
+      // --- CHANGE 2: Lower the threshold for sensitive users ---
+      const aqiThreshold = isSensitive ? 50 : 100; // Was 100 : 150
 
       console.log(`-> Checking ${user.name}. Sensitive: ${isSensitive}. Threshold: ${aqiThreshold}.`);
       if (currentAqi > aqiThreshold) {
         
-        // --- THIS IS THE ONLY CHANGED PART ---
+        // --- CHANGE 3: Updated notification message for moderate risk ---
         const description = getAqiDescription(currentAqi);
         const message = { 
           notification: { 
-            title: `⚠️ High AQI Alert - ${description}`, 
-            body: `Hi ${user.name}, the AQI is now ${currentAqi}, which poses a risk due to your health conditions. It's recommended to limit prolonged outdoor exertion today.`
+            title: `Moderate AQI Alert - ${description}`, 
+            body: `Hi ${user.name}, the AQI is ${currentAqi} (${description}). Sensitive individuals should consider reducing outdoor exertion.`
           }, 
           token: user.fcmToken 
         };
-        // ------------------------------------
+        // -----------------------------------------------------------------
 
         await messaging.send(message);
         console.log(`   SUCCESS: Sent standard alert to ${user.name}.`);

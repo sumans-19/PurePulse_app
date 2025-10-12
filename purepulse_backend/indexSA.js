@@ -1,4 +1,4 @@
-// TEST SCRIPT 3: SPIKE ALERT (with Error Handling and History)
+// TEST SCRIPT 3: SPIKE ALERT (with Lower Values)
 require('dotenv').config();
 const admin = require('firebase-admin');
 const cron = require('node-cron');
@@ -20,16 +20,17 @@ async function checkAqiAndSendAlerts() {
       const user = { uid: userDoc.id, ...userDoc.data() };
       if (!user.fcmToken) continue; 
 
-      // Simulate a big jump in AQI
-      const currentAqi = 150;
-      const previousAqi = 50;
+      // --- THESE ARE THE ONLY CHANGED VALUES ---
+      // Simulate a jump from a good to a moderate level
+      const currentAqi = 75;
+      const previousAqi = 30;
+      // -----------------------------------------
+
       const difference = currentAqi - previousAqi;
       
       console.log(`-> Checking ${user.name}. Current: ${currentAqi}, Previous: ${previousAqi}, Difference: ${difference}.`);
 
       if (difference >= 40) {
-        
-        // --- THIS IS THE ONLY CHANGED PART ---
         const message = { 
           notification: { 
             title: '⚠️ Sudden Spike Alert!', 
@@ -37,7 +38,6 @@ async function checkAqiAndSendAlerts() {
           }, 
           token: user.fcmToken 
         };
-        // ------------------------------------
 
         await messaging.send(message);
         console.log(`   SUCCESS: Sent spike alert to ${user.name}.`);
