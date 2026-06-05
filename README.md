@@ -220,7 +220,6 @@ We welcome contributions! Please follow these steps:
 
 ## Repository Details
 
-- **Owner**: sumans-19
 - **Repository ID**: 1072346591
 - **Repository**: https://github.com/sumans-19/PurePulse_app
 - **Type**: Public
