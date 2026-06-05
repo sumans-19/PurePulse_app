@@ -2,13 +2,18 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AqiService {
-  final String _token = '324250aa1f0fd6b2e17e150d8f521f44a688b70b';
+  final String _token = dotenv.env['WAQI_TOKEN'] ?? '';
 
-  get latestData => null; // <-- Paste your new WAQI token
+  get latestData => null;
 
   Future<Map<String, dynamic>> getAqiData(double lat, double lon) async {
+    if (_token.isEmpty) {
+      throw Exception('WAQI_TOKEN is not configured');
+    }
+    
     final url = Uri.parse('https://api.waqi.info/feed/geo:$lat;$lon/?token=$_token');
 
     try {
