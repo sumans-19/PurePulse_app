@@ -120,47 +120,6 @@ npm install
 
 ### Mobile Application
 
-#### Development Build
-
-```bash
-# Run on connected device
-flutter run
-
-# Run on emulator
-flutter run -d emulator-5554
-
-# Run on iOS simulator
-flutter run -d ios
-```
-
-The application will launch with hot reload enabled for rapid development.
-
-#### Release Build
-
-```bash
-# Android Release
-flutter build apk --release
-
-# iOS Release
-flutter build ios --release
-
-# Both platforms
-flutter build apk --release
-flutter build ios --release
-```
-
-### Backend Service (if applicable)
-
-```bash
-cd purepulse_backend
-npm start
-
-# Or for development with auto-reload
-npm run dev
-```
-
----
-
 ## Project Structure
 
 ```
@@ -222,23 +181,6 @@ PurePulse_app/
 
 ---
 
-## API Documentation
-
-### Health Metrics Endpoints
-- `GET /api/health/heart-rate` - Retrieve heart rate data
-- `POST /api/health/heart-rate` - Log heart rate
-- `GET /api/health/activity` - Get activity logs
-- `POST /api/health/activity` - Create activity record
-- `GET /api/health/dashboard` - Get wellness dashboard
-
-### User Management
-- `POST /api/users/register` - User registration
-- `POST /api/users/login` - User login
-- `GET /api/users/profile` - Get user profile
-- `PUT /api/users/profile` - Update profile
-
----
-
 ## Performance Metrics
 
 ### Application Performance
@@ -251,8 +193,6 @@ PurePulse_app/
 ### Supported Platforms
 - ✅ Android 6.0+ (API 21+)
 - ✅ iOS 12.0+
-- ⚙️ Web (experimental)
-- ⚙️ Windows (experimental)
 
 ---
 
@@ -268,15 +208,6 @@ API_BASE_URL=http://your-api-server.com
 FIREBASE_PROJECT_ID=your-firebase-project
 ```
 
-### Firebase Setup
-
-1. Create a Firebase project
-2. Download `google-services.json` (Android)
-3. Download `GoogleService-Info.plist` (iOS)
-4. Place in appropriate directories
-
----
-
 ## Contributing
 
 We welcome contributions! Please follow these steps:
@@ -286,72 +217,6 @@ We welcome contributions! Please follow these steps:
 3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
-
-### Code Standards
-- Follow [Dart Style Guide](https://dart.dev/guides/language/effective-dart/style)
-- Write tests for new features
-- Maintain code coverage above 80%
-- Document public APIs
-
----
-
-## Testing
-
-```bash
-# Run all tests
-flutter test
-
-# Run tests with coverage
-flutter test --coverage
-
-# Run widget tests
-flutter test test/widgets/
-
-# Run integration tests
-flutter drive --target=test_driver/app.dart
-```
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue: Flutter not found**
-```bash
-# Add Flutter to PATH or use full path
-export PATH="$PATH:$(pwd)/flutter/bin"
-```
-
-**Issue: Build gradle errors**
-```bash
-# Clean and rebuild
-flutter clean
-flutter pub get
-flutter run
-```
-
-**Issue: iOS build fails**
-```bash
-# Update pods
-cd ios
-pod repo update
-pod install
-cd ..
-flutter run
-```
-
----
-
-## Security & Privacy
-
-- **Data Encryption**: All health data is encrypted in transit and at rest
-- **User Privacy**: No personal health data is shared without consent
-- **HIPAA Compliance**: Follows healthcare data protection standards
-- **Regular Audits**: Security reviews and penetration testing
-- **Transparent Policies**: Clear privacy and terms of service
-
----
 
 ## Repository Details
 
@@ -363,46 +228,3 @@ flutter run
 - **Created**: 2025
 
 ---
-
-## Support & Documentation
-
-- 📖 [Flutter Documentation](https://flutter.dev/docs)
-- 📚 [Dart Documentation](https://dart.dev/guides)
-- 🔥 [Firebase Documentation](https://firebase.google.com/docs)
-- 💬 [GitHub Issues](https://github.com/sumans-19/PurePulse_app/issues)
-- 📧 Contact: Your email address
-
----
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## Changelog
-
-### Version 1.0.0
-- ✅ Initial release
-- ✅ Heart rate monitoring
-- ✅ Activity tracking
-- ✅ Health dashboard
-- ✅ Cloud synchronization
-
-### Upcoming Features
-- 🔄 Advanced AI recommendations
-- 🔄 Social sharing capabilities
-- 🔄 Integration with wearable devices
-- 🔄 Advanced health reports
-
----
-
-## Acknowledgments
-
-- Flutter team for the amazing framework
-- Firebase for backend services
-- All contributors and supporters
-
----
-
-**Made with ❤️ by [Suman S](https://github.com/sumans-19)**
